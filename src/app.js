@@ -31,7 +31,10 @@ const elements = {
   dropTitle: document.querySelector("#dropTitle"),
   dropHelp: document.querySelector("#dropHelp"),
   folderInput: document.querySelector("#folderInput"),
+  zipInput: document.querySelector("#zipInput"),
   chooseFolderButton: document.querySelector("#chooseFolderButton"),
+  chooseZipButton: document.querySelector("#chooseZipButton"),
+  sampleSession: document.querySelector("#sampleSession"),
   sessionPanel: document.querySelector("#sessionPanel"),
   sessionName: document.querySelector("#sessionName"),
   signalCount: document.querySelector("#signalCount"),
@@ -351,7 +354,7 @@ function clearSession() {
   elements.previewSessionButton.disabled = true;
   elements.dropTitle.textContent = "Drop an E4 session folder here";
   elements.dropHelp.textContent =
-    "Drag the whole folder from your computer. ACC, BVP, EDA, HR and TEMP are required.";
+    "Drag a folder or ZIP from your computer. ACC, BVP, EDA, HR and TEMP are required.";
 }
 
 elements.startButton.addEventListener("click", startEngine);
@@ -363,6 +366,24 @@ elements.chooseFolderButton.addEventListener("click", () =>
 elements.folderInput.addEventListener("change", (event) =>
   loadSession([...event.target.files]),
 );
+elements.zipInput.addEventListener("change", (event) =>
+  loadSession([...event.target.files]),
+);
+elements.chooseZipButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  elements.zipInput.click();
+});
+elements.sampleSession.addEventListener("change", async (event) => {
+  const name = event.target.value;
+  if (!name) return;
+  try {
+    const response = await fetch(`./e4-samples/${encodeURIComponent(name)}`);
+    if (!response.ok) throw new Error("Sample session could not be loaded.");
+    await loadSession([new File([await response.blob()], name, { type: "application/zip" })]);
+  } catch (error) {
+    elements.dropHelp.textContent = error.message;
+  }
+});
 elements.dropZone.addEventListener("click", (event) => {
   if (event.target !== elements.chooseFolderButton) {
     elements.folderInput.click();

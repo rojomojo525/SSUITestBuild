@@ -80,7 +80,7 @@
             <h2 id="workspace-title">Bring a session into BioDAW.</h2>
           </div>
           <p>
-            Drop an extracted Empatica E4 folder below. The files are read
+            Drop an Empatica E4 folder or ZIP below. The files are read
             locally in this browser and are not uploaded.
           </p>
         </div>
@@ -101,17 +101,31 @@
             multiple
             hidden
           />
+          <input id="zipInput" type="file" accept=".zip,application/zip" multiple hidden />
           <span class="drop-index" aria-hidden="true">DROP</span>
           <div>
             <strong id="dropTitle">Drop an E4 session folder here</strong>
             <span id="dropHelp">
-              Drag the whole folder from your computer. ACC, BVP, EDA, HR and
+              Drag a folder or ZIP from your computer. ACC, BVP, EDA, HR and
               TEMP are required.
             </span>
           </div>
           <button id="chooseFolderButton" type="button">
-            Browse instead
+            Browse files
           </button>
+          <button id="chooseZipButton" type="button">Browse ZIP</button>
+        </div>
+        <div class="sample-picker">
+          <label for="sampleSession">Or try a sample E4 session</label>
+          <select id="sampleSession">
+            <option value="">Choose a bundled sample…</option>
+            <option value="E4_Boxing Soft & Hard.zip">Boxing Soft &amp; Hard</option>
+            <option value="E4_Hand Arm Curls.zip">Hand Arm Curls</option>
+            <option value="E4_Hand Wave Motion.zip">Hand Wave Motion</option>
+            <option value="E4_into-hot-water_5m30s.zip">Into Hot Water · 5m30s</option>
+            <option value="E4_Jumping Jacks w Wrist Twist.zip">Jumping Jacks + Wrist Twist</option>
+            <option value="E4_wind-down_5m15s.zip">Wind Down · 5m15s</option>
+          </select>
         </div>
 
         <div class="session-panel" id="sessionPanel" hidden>

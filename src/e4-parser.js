@@ -9,6 +9,48 @@ function baseName(path) {
     .toUpperCase();
 }
 
+async function unzipE4(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(bytes.buffer);
+  const decoder = new TextDecoder();
+  let end = -1;
+  for (let offset = bytes.length - 22; offset >= 0; offset -= 1) {
+    if (view.getUint32(offset, true) === 0x06054b50) { end = offset; break; }
+  }
+  if (end < 0) throw new Error("That ZIP file does not contain a readable archive.");
+  const count = view.getUint16(end + 10, true);
+  const directorySize = view.getUint32(end + 12, true);
+  const directoryOffset = view.getUint32(end + 16, true);
+  const files = [];
+  let cursor = directoryOffset;
+  for (let index = 0; index < count; index += 1) {
+    if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error("The ZIP central directory is invalid.");
+    const method = view.getUint16(cursor + 10, true);
+    const compressedSize = view.getUint32(cursor + 20, true);
+    const nameLength = view.getUint16(cursor + 28, true);
+    const extraLength = view.getUint16(cursor + 30, true);
+    const commentLength = view.getUint16(cursor + 32, true);
+    const localOffset = view.getUint32(cursor + 42, true);
+    const name = decoder.decode(bytes.slice(cursor + 46, cursor + 46 + nameLength));
+    cursor += 46 + nameLength + extraLength + commentLength;
+    if (!name.toLowerCase().endsWith(".csv") || name.endsWith("/")) continue;
+    if (view.getUint32(localOffset, true) !== 0x04034b50) continue;
+    const localNameLength = view.getUint16(localOffset + 26, true);
+    const localExtraLength = view.getUint16(localOffset + 28, true);
+    const start = localOffset + 30 + localNameLength + localExtraLength;
+    const compressed = bytes.slice(start, start + compressedSize);
+    let content;
+    if (method === 0) content = compressed;
+    else if (method === 8 && "DecompressionStream" in window) {
+      const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      content = new Uint8Array(await new Response(stream).arrayBuffer());
+    } else throw new Error("This ZIP uses an unsupported compression method.");
+    files.push(new File([content], name, { type: "text/csv" }));
+  }
+  if (!files.length || directorySize <= 0) throw new Error("No CSV files were found in that ZIP archive.");
+  return files;
+}
+
 function numericRows(text) {
   return text
     .replace(/^\uFEFF/, "")
@@ -80,9 +122,14 @@ function parseContinuousSignal(name, text) {
 }
 
 export async function parseE4Session(files) {
+  const expanded = [];
+  for (const file of files) {
+    if (file.name.toLowerCase().endsWith(".zip")) expanded.push(...(await unzipE4(file)));
+    else expanded.push(file);
+  }
   const byName = new Map();
 
-  for (const file of files) {
+  for (const file of expanded) {
     const name = baseName(file.webkitRelativePath || file.name);
     if (!byName.has(name)) byName.set(name, file);
   }
