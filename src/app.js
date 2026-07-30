@@ -53,6 +53,8 @@ let activeSession = null;
 let engineReady = false;
 let previewTimers = [];
 let sessionTrackIndexes = [];
+const previewStepCount = 40;
+const previewStepLength = 750;
 
 const musicalRoles = {
   ACC: ["Motion melody", "Rhythmic trigger", "Filter motion"],
@@ -297,7 +299,6 @@ async function previewSession() {
   }
 
   const rows = [...elements.trackList.querySelectorAll(".track-row")];
-  const stepLength = 240;
 
   activeSession.tracks.forEach((track, trackIndex) => {
     const row = rows[trackIndex];
@@ -305,8 +306,13 @@ async function previewSession() {
     const bioTrackIndex = sessionTrackIndexes[trackIndex];
     HeadlessAPI.setTrackInstrument(bioTrackIndex, 0, program);
 
-    const stride = Math.max(1, Math.floor(track.samples.length / 8));
-    const previewSamples = track.samples.filter((_, index) => index % stride === 0).slice(0, 8);
+    const stride = Math.max(
+      1,
+      Math.floor(track.samples.length / previewStepCount),
+    );
+    const previewSamples = track.samples
+      .filter((_, index) => index % stride === 0)
+      .slice(0, previewStepCount);
 
     previewSamples.forEach((sample, step) => {
       const pitch = sampleToMidi(track, sample, 48 + trackIndex * 2, 18);
@@ -316,23 +322,23 @@ async function previewSession() {
           previewTimers.push(
             window.setTimeout(
               () => HeadlessAPI.stopSynthNote(bioTrackIndex, pitch),
-              stepLength * 0.72,
+              previewStepLength * 0.72,
             ),
           );
-        }, step * stepLength),
+        }, step * previewStepLength),
       );
     });
   });
 
   elements.workspaceStatus.textContent =
-    "Previewing a short musical sketch from the five biometric streams.";
+    "Previewing 30 seconds mapped directly from the five E4 biometric streams.";
   previewTimers.push(
     window.setTimeout(() => {
       stopSessionPreview();
       elements.previewSessionButton.disabled = !engineReady;
       elements.workspaceStatus.textContent =
-        "Preview complete. The backend connection will replace this sketch with HeartSong generation.";
-    }, 8 * stepLength + 300),
+        "Local mapping preview complete. Full HeartSong generation will use the backend algorithm.";
+    }, previewStepCount * previewStepLength + 300),
   );
 }
 
