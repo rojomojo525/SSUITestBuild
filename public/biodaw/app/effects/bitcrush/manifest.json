@@ -1,0 +1,8 @@
+{
+  "name" : "Bitcrusher",
+  "cppClassName": "BitCrusherEffect",
+  "properties": [
+    { "name": "bitDepth", "type":"INT" ,"min": 1, "max": 24, "default": 8 }
+
+  ]
+}

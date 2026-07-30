@@ -1,0 +1,12 @@
+#N canvas 50 50 400 300 12;
+#X obj 50 50 adc~ 1 2;
+#X obj 50 150 *~ 1;
+#X obj 150 150 *~ 1;
+#X obj 100 100 r level;
+#X obj 50 250 dac~ 1 2;
+#X connect 0 0 1 0;
+#X connect 0 1 2 0;
+#X connect 3 0 1 1;
+#X connect 3 0 2 1;
+#X connect 1 0 4 0;
+#X connect 2 0 4 1;

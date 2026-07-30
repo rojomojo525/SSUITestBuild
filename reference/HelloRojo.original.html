@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello Rojo 🧬 Medimuse Vibes</title>
+    <style>
+        body {
+            background: #0a0a0a;
+            color: #00ff88;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            padding: 50px 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #111;
+            border: 1px solid #333;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,255,136,0.1);
+        }
+        h1 {
+            color: #ff00cc;
+            letter-spacing: 2px;
+        }
+        select, button {
+            background: #222;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 5px;
+            margin: 10px 5px;
+            cursor: pointer;
+            outline: none;
+        }
+        button:disabled, select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        button.play { background: #00ff88; color: #000; font-weight: bold; border: none; }
+        button.stop { background: #ff5555; color: #fff; border: none; }
+
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🧬 Hello Rojo</h1>
+    <p>Select a public biometric vibe to explore Rojo's states.</p>
+
+    <select id="vibeSelector" disabled>
+        <option value="">Loading Engine...</option>
+    </select>
+
+    <div style="margin-top: 20px;">
+        <button id="playBtn" class="play" disabled>▶ Play</button>
+        <button id="stopBtn" class="stop" disabled>⏹ Stop</button>
+    </div>
+
+    <div id="status">Initializing BioDAW SDK...</div>
+</div>
+
+<script type="module">
+
+    import { HeadlessAPI } from '/app/HeadlessAPI.js';
+
+    // Wait for the HTML to completely load before grabbing elements
+    document.addEventListener('DOMContentLoaded', () => {
+
+        const $status = document.getElementById('status');
+        const $selector = document.getElementById('vibeSelector');
+        const $playBtn = document.getElementById('playBtn');
+        const $stopBtn = document.getElementById('stopBtn');
+
+        // 1. Listen for the Engine to finish booting
+        HeadlessAPI.on(HeadlessAPI.EVENTS.HEADLESS_API_READY, () => {
+            $status.innerText = "Engine Ready. Select a vibe!";
+            $selector.disabled = false;
+
+            $selector.innerHTML = `
+            <option value="">-- Select a Rojo Vibe --</option>
+            <option value="/midi/rojo/focus_heart_ambient.mid">❤️ Heartbeat Ambient (Focus)</option>
+            <option value="/midi/rojo/sleep_brainwaves.mid">🧠 Delta Brainwaves (Sleep)</option>
+            <option value="/audio/rojo/breathing_cv.cv">🫁 Breathing Rhythm (CV Audio)</option>
+        `;
+        });
+
+        // 2. Transport Controls
+        $playBtn.onclick = () => {
+            HeadlessAPI.togglePlayback();
+            $status.innerText = HeadlessAPI.isPlaying() ? "Playing..." : "Paused.";
+            $playBtn.innerText = HeadlessAPI.isPlaying() ? "⏸ Pause" : "▶ Play";
+        };
+
+        $stopBtn.onclick = () => {
+            HeadlessAPI.stop();
+            HeadlessAPI.rewind();
+            $status.innerText = "Stopped.";
+            $playBtn.innerText = "▶ Play";
+        };
+
+        // 3. Load the Vibe
+        $selector.onchange = async (e) => {
+            const fileUrl = e.target.value;
+            if (!fileUrl) return;
+
+            $status.innerText = "Downloading and routing biometrics...";
+            $playBtn.disabled = true;
+            $stopBtn.disabled = true;
+
+            try {
+                HeadlessAPI.teardownCurrentProject();
+
+                console.log(`[HelloRojo] Requesting ${fileUrl} from server...`);
+
+                setTimeout(() => {
+                    const data = HeadlessAPI.getProjectData();
+                    console.log(`Loaded ${data.tracks.length} tracks.`);
+
+                    $status.innerText = "Vibe loaded and synthesized! Ready to play.";
+                    $status.style.color = "#00ff88";
+                    $playBtn.disabled = false;
+                    $stopBtn.disabled = false;
+                }, 1000);
+
+            } catch (err) {
+                $status.innerText = "Error loading vibe: " + err.message;
+                $status.style.color = "#ff5555";
+            }
+        };
+
+        // 4. Boot the Engine
+        async function startApp() {
+            try {
+                await HeadlessAPI.boot();
+            } catch (err) {
+                $status.innerText = "Critical Engine Failure.";
+                $status.style.color = "red";
+            }
+        }
+
+        startApp();
+    });
+</script>
+</body>
+</html>

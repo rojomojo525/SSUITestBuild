@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A browser-based BioDAW and MediMuse client test for the StateSong experience."
+    />
+    <title>Hello rOjO · StateSong</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <a class="wordmark" href="#" aria-label="StateSong home">
+          <span class="wordmark-mark" aria-hidden="true"></span>
+          <span>StateSong</span>
+        </a>
+        <span class="build-label">UI TEST BUILD · 001</span>
+      </header>
+
+      <section class="hero" aria-labelledby="page-title">
+        <div class="eyebrow">
+          <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+          <span id="engineState">Engine offline</span>
+        </div>
+
+        <h1 id="page-title">Hello, <span>rOjO.</span></h1>
+        <p class="lede">
+          A first signal from BioDAW and MediMuse—running entirely in your
+          browser.
+        </p>
+
+        <div class="engine-card">
+          <div class="signal-field" aria-hidden="true">
+            <div class="signal-line signal-line-one"></div>
+            <div class="signal-line signal-line-two"></div>
+            <div class="signal-line signal-line-three"></div>
+            <div class="signal-orbit"></div>
+          </div>
+
+          <div class="engine-content">
+            <p class="step-label">BIOLOGICAL AUDIO WORKSTATION</p>
+            <h2>Wake the engine.</h2>
+            <p id="statusMessage" class="status-message" aria-live="polite">
+              BioDAW is ready to initialize. Audio begins only after you ask.
+            </p>
+
+            <div class="actions">
+              <button class="primary-action" id="startButton" type="button">
+                <span>Start BioDAW</span>
+                <span aria-hidden="true">↗</span>
+              </button>
+              <button
+                class="secondary-action"
+                id="playButton"
+                type="button"
+                disabled
+              >
+                Play hello tone
+              </button>
+              <button
+                class="secondary-action"
+                id="stopButton"
+                type="button"
+                disabled
+              >
+                Stop
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="proof" aria-labelledby="proof-title">
+        <div>
+          <p class="step-label">LIVE CLIENT PROOF</p>
+          <h2 id="proof-title">One page. No server. Real engine.</h2>
+        </div>
+        <dl class="proof-grid">
+          <div>
+            <dt>BioDAW</dt>
+            <dd id="biodawProof">Waiting</dd>
+          </div>
+          <div>
+            <dt>MediMuse</dt>
+            <dd id="medimuseProof">Client detected</dd>
+          </div>
+          <div>
+            <dt>Audio</dt>
+            <dd id="audioProof">Locked</dd>
+          </div>
+        </dl>
+      </section>
+
+      <footer>
+        <span>ROBERT JOSEPH · PETER SLACK · TREBOR</span>
+        <span>E4 → HEARTSONG → STATESONG</span>
+      </footer>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

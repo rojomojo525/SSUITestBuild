@@ -44,14 +44,25 @@ architecture.
 - Server-side application architecture
 - Requiring users to understand internal engine details
 
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+The first browser interaction must be **Start BioDAW**. Browsers require a user
+gesture before activating an audio engine.
+
 ## Project status
 
-Initial repository setup is in progress. The next deliverable is a verified
-Hello World static page using the available BioDAW client library.
+The first Hello rOjO application integrates the packaged BioDAW 1.0.0 SDK,
+boots its WebAssembly audio engine in the browser, detects the MediMuse client,
+and provides a playable BioDAW synthesizer check. E4 session import and the
+full HeartSong workflow are the next integration milestone.
 
 ## Stewardship
 
 Robert Joseph retains authorship and final authority for project intent and
 direction. Peter Slack and Trebor participate as co-development collaborators
 within the authority and scope Robert establishes.
-
