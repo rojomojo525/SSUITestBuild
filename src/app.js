@@ -15,6 +15,7 @@ await establishAudioIsolation();
 
 const sdkUrl = new URL("./biodaw/biodaw-sdk.es.js", document.baseURI).href;
 const { HeadlessAPI } = await import(sdkUrl);
+const { parseE4Session, sampleToMidi } = await import("./e4-parser.js");
 
 const elements = {
   startButton: document.querySelector("#startButton"),
@@ -26,6 +27,19 @@ const elements = {
   biodawProof: document.querySelector("#biodawProof"),
   medimuseProof: document.querySelector("#medimuseProof"),
   audioProof: document.querySelector("#audioProof"),
+  dropZone: document.querySelector("#dropZone"),
+  dropTitle: document.querySelector("#dropTitle"),
+  dropHelp: document.querySelector("#dropHelp"),
+  folderInput: document.querySelector("#folderInput"),
+  chooseFolderButton: document.querySelector("#chooseFolderButton"),
+  sessionPanel: document.querySelector("#sessionPanel"),
+  sessionName: document.querySelector("#sessionName"),
+  signalCount: document.querySelector("#signalCount"),
+  sessionDuration: document.querySelector("#sessionDuration"),
+  trackList: document.querySelector("#trackList"),
+  workspaceStatus: document.querySelector("#workspaceStatus"),
+  clearSessionButton: document.querySelector("#clearSessionButton"),
+  previewSessionButton: document.querySelector("#previewSessionButton"),
 };
 
 const runtimeBase = new URL("./biodaw/app", document.baseURI).href.replace(
@@ -35,6 +49,30 @@ const runtimeBase = new URL("./biodaw/app", document.baseURI).href.replace(
 
 let helloTrackIndex = -1;
 let noteTimer = null;
+let activeSession = null;
+let previewTimers = [];
+let sessionTrackIndexes = [];
+
+const musicalRoles = {
+  ACC: ["Motion melody", "Rhythmic trigger", "Filter motion"],
+  BVP: ["Pulse rhythm", "Percussion", "Bass pulse"],
+  EDA: ["Texture", "Harmony density", "Filter motion"],
+  HR: ["Master tempo", "Bass voice", "Pulse melody"],
+  TEMP: ["Warm pad", "Timbre color", "Ambient bed"],
+};
+
+const instruments = [
+  { value: 0, label: "Acoustic piano" },
+  { value: 4, label: "Electric piano" },
+  { value: 16, label: "Drawbar organ" },
+  { value: 24, label: "Acoustic guitar" },
+  { value: 33, label: "Electric bass" },
+  { value: 48, label: "String ensemble" },
+  { value: 73, label: "Flute" },
+  { value: 80, label: "Square synth" },
+  { value: 81, label: "Saw synth" },
+  { value: 89, label: "Warm pad" },
+];
 
 function setStatus(state, message) {
   elements.engineState.textContent = state;
@@ -52,6 +90,12 @@ function markReady() {
     ? "Client ready"
     : "Unavailable";
   elements.audioProof.textContent = `${HeadlessAPI.getSampleRate()} Hz`;
+  elements.dropZone.classList.remove("is-locked");
+  elements.dropZone.setAttribute("aria-disabled", "false");
+  elements.chooseFolderButton.disabled = false;
+  elements.dropTitle.textContent = "Drop an E4 folder here";
+  elements.dropHelp.textContent =
+    "Or choose a folder containing ACC, BVP, EDA, HR and TEMP CSV files.";
 }
 
 function stopHelloTone() {
@@ -115,10 +159,234 @@ function playHelloTone() {
   noteTimer = window.setTimeout(stopHelloTone, 1800);
 }
 
+function stopSessionPreview() {
+  previewTimers.forEach(window.clearTimeout);
+  previewTimers = [];
+  sessionTrackIndexes.forEach((trackIndex) => {
+    for (let pitch = 36; pitch <= 84; pitch += 1) {
+      HeadlessAPI.stopSynthNote(trackIndex, pitch);
+    }
+  });
+}
+
+function formatDuration(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(Math.round(seconds % 60)).padStart(2, "0")}`;
+}
+
+function selectMarkup(options, selected) {
+  return options
+    .map((option) => {
+      const value = typeof option === "object" ? option.value : option;
+      const label = typeof option === "object" ? option.label : option;
+      return `<option value="${value}" ${String(value) === String(selected) ? "selected" : ""}>${label}</option>`;
+    })
+    .join("");
+}
+
+function renderSession(session) {
+  elements.sessionName.textContent = session.folderName;
+  elements.signalCount.textContent = String(session.tracks.length);
+  elements.sessionDuration.textContent = formatDuration(
+    Math.max(...session.tracks.map((track) => track.durationSeconds)),
+  );
+
+  elements.trackList.innerHTML = session.tracks
+    .map((track, index) => {
+      const defaultPrograms = { ACC: 80, BVP: 33, EDA: 48, HR: 16, TEMP: 89 };
+      return `
+        <article class="track-row" data-track-index="${index}">
+          <div class="track-identity">
+            <span class="track-color track-${track.name.toLowerCase()}"></span>
+            <div>
+              <strong>${track.name}</strong>
+              <small>${track.frequency} Hz · ${track.dimensions}D</small>
+            </div>
+          </div>
+          <span class="sample-count">${track.samples.length.toLocaleString()}</span>
+          <label>
+            <span class="sr-only">Musical role for ${track.name}</span>
+            <select class="role-select">
+              ${selectMarkup(musicalRoles[track.name], musicalRoles[track.name][0])}
+            </select>
+          </label>
+          <label>
+            <span class="sr-only">Sound for ${track.name}</span>
+            <select class="instrument-select">
+              ${selectMarkup(instruments, defaultPrograms[track.name])}
+            </select>
+          </label>
+        </article>
+      `;
+    })
+    .join("");
+
+  elements.sessionPanel.hidden = false;
+  elements.workspaceStatus.textContent =
+    "E4 session validated locally. Choose mappings, then preview them in BioDAW.";
+}
+
+async function loadSession(files) {
+  if (!files.length) return;
+  elements.dropZone.classList.add("is-processing");
+  elements.dropTitle.textContent = "Reading E4 session…";
+
+  try {
+    activeSession = await parseE4Session(files);
+    renderSession(activeSession);
+    elements.dropZone.classList.remove("is-processing");
+    elements.dropTitle.textContent = "E4 session ready";
+    elements.dropHelp.textContent =
+      "Your biometric files remain on this device unless you explicitly generate a StateSong.";
+  } catch (error) {
+    activeSession = null;
+    elements.sessionPanel.hidden = true;
+    elements.dropZone.classList.remove("is-processing");
+    elements.dropTitle.textContent = "That folder is not a complete E4 session";
+    elements.dropHelp.textContent = error.message;
+  }
+}
+
+async function filesFromEntry(entry) {
+  if (entry.isFile) {
+    return new Promise((resolve, reject) =>
+      entry.file((file) => resolve([file]), reject),
+    );
+  }
+
+  if (!entry.isDirectory) return [];
+  const reader = entry.createReader();
+  const entries = [];
+  let batch = [];
+  do {
+    batch = await new Promise((resolve, reject) =>
+      reader.readEntries(resolve, reject),
+    );
+    entries.push(...batch);
+  } while (batch.length);
+
+  return (await Promise.all(entries.map(filesFromEntry))).flat();
+}
+
+async function droppedFiles(dataTransfer) {
+  const entries = [...dataTransfer.items]
+    .map((item) => item.webkitGetAsEntry?.())
+    .filter(Boolean);
+
+  if (!entries.length) return [...dataTransfer.files];
+  return (await Promise.all(entries.map(filesFromEntry))).flat();
+}
+
+async function previewSession() {
+  if (!activeSession) return;
+  stopSessionPreview();
+  elements.previewSessionButton.disabled = true;
+  elements.workspaceStatus.textContent =
+    "Creating five BioDAW voices from the selected biometric mappings…";
+
+  if (!sessionTrackIndexes.length) {
+    for (const [index, track] of activeSession.tracks.entries()) {
+      const created = await HeadlessAPI.addTrack(`E4 · ${track.name}`, "midi");
+      const project = HeadlessAPI.getProjectData();
+      const trackIndex = project.tracks.findIndex((item) => item.id === created.id);
+      sessionTrackIndexes[index] = trackIndex;
+    }
+  }
+
+  const rows = [...elements.trackList.querySelectorAll(".track-row")];
+  const stepLength = 240;
+
+  activeSession.tracks.forEach((track, trackIndex) => {
+    const row = rows[trackIndex];
+    const program = Number(row.querySelector(".instrument-select").value);
+    const bioTrackIndex = sessionTrackIndexes[trackIndex];
+    HeadlessAPI.setTrackInstrument(bioTrackIndex, 0, program);
+
+    const stride = Math.max(1, Math.floor(track.samples.length / 8));
+    const previewSamples = track.samples.filter((_, index) => index % stride === 0).slice(0, 8);
+
+    previewSamples.forEach((sample, step) => {
+      const pitch = sampleToMidi(track, sample, 48 + trackIndex * 2, 18);
+      previewTimers.push(
+        window.setTimeout(() => {
+          HeadlessAPI.playSynthNote(bioTrackIndex, pitch, 68);
+          previewTimers.push(
+            window.setTimeout(
+              () => HeadlessAPI.stopSynthNote(bioTrackIndex, pitch),
+              stepLength * 0.72,
+            ),
+          );
+        }, step * stepLength),
+      );
+    });
+  });
+
+  elements.workspaceStatus.textContent =
+    "Previewing a short musical sketch from the five biometric streams.";
+  previewTimers.push(
+    window.setTimeout(() => {
+      stopSessionPreview();
+      elements.previewSessionButton.disabled = false;
+      elements.workspaceStatus.textContent =
+        "Preview complete. The backend connection will replace this sketch with HeartSong generation.";
+    }, 8 * stepLength + 300),
+  );
+}
+
+function clearSession() {
+  stopSessionPreview();
+  activeSession = null;
+  sessionTrackIndexes = [];
+  elements.folderInput.value = "";
+  elements.sessionPanel.hidden = true;
+  elements.dropTitle.textContent = "Drop an E4 folder here";
+  elements.dropHelp.textContent =
+    "Or choose a folder containing ACC, BVP, EDA, HR and TEMP CSV files.";
+}
+
 elements.startButton.addEventListener("click", startEngine);
 elements.playButton.addEventListener("click", playHelloTone);
 elements.stopButton.addEventListener("click", stopHelloTone);
+elements.chooseFolderButton.addEventListener("click", () =>
+  elements.folderInput.click(),
+);
+elements.folderInput.addEventListener("change", (event) =>
+  loadSession([...event.target.files]),
+);
+elements.dropZone.addEventListener("click", (event) => {
+  if (
+    !elements.chooseFolderButton.disabled &&
+    event.target !== elements.chooseFolderButton
+  ) {
+    elements.folderInput.click();
+  }
+});
+elements.dropZone.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    elements.chooseFolderButton.click();
+  }
+});
+elements.dropZone.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  if (!elements.chooseFolderButton.disabled) {
+    elements.dropZone.classList.add("is-dragging");
+  }
+});
+elements.dropZone.addEventListener("dragleave", () =>
+  elements.dropZone.classList.remove("is-dragging"),
+);
+elements.dropZone.addEventListener("drop", async (event) => {
+  event.preventDefault();
+  elements.dropZone.classList.remove("is-dragging");
+  if (!elements.chooseFolderButton.disabled) {
+    await loadSession(await droppedFiles(event.dataTransfer));
+  }
+});
+elements.previewSessionButton.addEventListener("click", previewSession);
+elements.clearSessionButton.addEventListener("click", clearSession);
 
 window.addEventListener("beforeunload", () => {
+  stopSessionPreview();
   if (helloTrackIndex >= 0) HeadlessAPI.closeAllSynths();
 });

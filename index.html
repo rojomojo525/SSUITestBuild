@@ -73,6 +73,92 @@
         </div>
       </section>
 
+      <section class="workspace" id="e4Workspace" aria-labelledby="workspace-title">
+        <div class="workspace-heading">
+          <div>
+            <p class="step-label">RECORDED E4 STUDIO</p>
+            <h2 id="workspace-title">Bring a session into BioDAW.</h2>
+          </div>
+          <p>
+            Choose an extracted Empatica E4 folder. The files are read locally
+            in this browser and are not uploaded.
+          </p>
+        </div>
+
+        <div
+          class="drop-zone is-locked"
+          id="dropZone"
+          role="button"
+          tabindex="0"
+          aria-disabled="true"
+          aria-label="Choose or drop an Empatica E4 folder"
+        >
+          <input
+            id="folderInput"
+            type="file"
+            webkitdirectory
+            directory
+            multiple
+            hidden
+          />
+          <span class="drop-index">01</span>
+          <div>
+            <strong id="dropTitle">Start BioDAW to unlock E4 import</strong>
+            <span id="dropHelp">ACC, BVP, EDA, HR and TEMP are required.</span>
+          </div>
+          <button id="chooseFolderButton" type="button" disabled>
+            Choose E4 folder
+          </button>
+        </div>
+
+        <div class="session-panel" id="sessionPanel" hidden>
+          <div class="session-summary">
+            <div>
+              <span class="summary-label">SESSION</span>
+              <strong id="sessionName">—</strong>
+            </div>
+            <div>
+              <span class="summary-label">SIGNALS</span>
+              <strong id="signalCount">0</strong>
+            </div>
+            <div>
+              <span class="summary-label">DURATION</span>
+              <strong id="sessionDuration">0:00</strong>
+            </div>
+            <div>
+              <span class="summary-label">STATUS</span>
+              <strong class="valid-state">Validated</strong>
+            </div>
+          </div>
+
+          <div class="track-list-heading">
+            <span>Biometric source</span>
+            <span>Samples</span>
+            <span>Musical role</span>
+            <span>Sound</span>
+          </div>
+          <div class="track-list" id="trackList"></div>
+
+          <div class="workspace-actions">
+            <p id="workspaceStatus" aria-live="polite">
+              Choose the musical role and sound for each biometric signal.
+            </p>
+            <div>
+              <button class="secondary-action" id="clearSessionButton" type="button">
+                Clear
+              </button>
+              <button class="primary-action" id="previewSessionButton" type="button">
+                <span>Preview mappings</span>
+                <span aria-hidden="true">▶</span>
+              </button>
+              <button class="backend-action" type="button" disabled>
+                Generate StateSong · API pending
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="proof" aria-labelledby="proof-title">
         <div>
           <p class="step-label">LIVE CLIENT PROOF</p>

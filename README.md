@@ -58,8 +58,13 @@ gesture before activating an audio engine.
 
 The first Hello rOjO application integrates the packaged BioDAW 1.0.0 SDK,
 boots its WebAssembly audio engine in the browser, detects the MediMuse client,
-and provides a playable BioDAW synthesizer check. E4 session import and the
-full HeartSong workflow are the next integration milestone.
+and provides a playable BioDAW synthesizer check.
+
+The recorded E4 studio accepts an extracted Empatica session folder, validates
+and parses ACC, BVP, EDA, HR, and TEMP locally, presents each signal as a
+configurable musical track, and produces a short BioDAW mapping preview. The
+authenticated HeartSong generation call and real-time OSC/WebSocket bridge
+remain the next integration milestones.
 
 ## Stewardship
 
