@@ -80,17 +80,17 @@
             <h2 id="workspace-title">Bring a session into BioDAW.</h2>
           </div>
           <p>
-            Choose an extracted Empatica E4 folder. The files are read locally
-            in this browser and are not uploaded.
+            Drop an extracted Empatica E4 folder below. The files are read
+            locally in this browser and are not uploaded.
           </p>
         </div>
 
         <div
-          class="drop-zone is-locked"
+          class="drop-zone"
           id="dropZone"
           role="button"
           tabindex="0"
-          aria-disabled="true"
+          aria-disabled="false"
           aria-label="Choose or drop an Empatica E4 folder"
         >
           <input
@@ -101,13 +101,16 @@
             multiple
             hidden
           />
-          <span class="drop-index">01</span>
+          <span class="drop-index" aria-hidden="true">DROP</span>
           <div>
-            <strong id="dropTitle">Start BioDAW to unlock E4 import</strong>
-            <span id="dropHelp">ACC, BVP, EDA, HR and TEMP are required.</span>
+            <strong id="dropTitle">Drop an E4 session folder here</strong>
+            <span id="dropHelp">
+              Drag the whole folder from your computer. ACC, BVP, EDA, HR and
+              TEMP are required.
+            </span>
           </div>
-          <button id="chooseFolderButton" type="button" disabled>
-            Choose E4 folder
+          <button id="chooseFolderButton" type="button">
+            Browse instead
           </button>
         </div>
 
@@ -147,7 +150,12 @@
               <button class="secondary-action" id="clearSessionButton" type="button">
                 Clear
               </button>
-              <button class="primary-action" id="previewSessionButton" type="button">
+              <button
+                class="primary-action"
+                id="previewSessionButton"
+                type="button"
+                disabled
+              >
                 <span>Preview mappings</span>
                 <span aria-hidden="true">▶</span>
               </button>

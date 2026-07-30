@@ -331,20 +331,14 @@ h1 span {
   grid-template-columns: auto 1fr auto;
   gap: 28px;
   align-items: center;
-  min-height: 132px;
-  padding: 24px 28px;
-  border: 1px dashed rgba(184, 255, 79, 0.42);
+  min-height: 190px;
+  padding: 34px 38px;
+  border: 2px dashed rgba(184, 255, 79, 0.52);
   background: rgba(184, 255, 79, 0.035);
   cursor: pointer;
   transition:
     border-color 160ms ease,
     background 160ms ease;
-}
-
-.drop-zone.is-locked {
-  border-color: var(--line);
-  background: rgba(255, 255, 255, 0.015);
-  cursor: not-allowed;
 }
 
 .drop-zone.is-dragging,
@@ -356,7 +350,9 @@ h1 span {
 .drop-index {
   color: var(--acid);
   font-family: Consolas, "Courier New", monospace;
-  font-size: 13px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  writing-mode: vertical-rl;
 }
 
 .drop-zone strong,

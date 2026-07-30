@@ -50,6 +50,7 @@ const runtimeBase = new URL("./biodaw/app", document.baseURI).href.replace(
 let helloTrackIndex = -1;
 let noteTimer = null;
 let activeSession = null;
+let engineReady = false;
 let previewTimers = [];
 let sessionTrackIndexes = [];
 
@@ -80,6 +81,7 @@ function setStatus(state, message) {
 }
 
 function markReady() {
+  engineReady = true;
   elements.statusDot.classList.add("is-ready");
   elements.startButton.disabled = true;
   elements.startButton.querySelector("span").textContent = "Engine online";
@@ -90,12 +92,11 @@ function markReady() {
     ? "Client ready"
     : "Unavailable";
   elements.audioProof.textContent = `${HeadlessAPI.getSampleRate()} Hz`;
-  elements.dropZone.classList.remove("is-locked");
-  elements.dropZone.setAttribute("aria-disabled", "false");
-  elements.chooseFolderButton.disabled = false;
-  elements.dropTitle.textContent = "Drop an E4 folder here";
-  elements.dropHelp.textContent =
-    "Or choose a folder containing ACC, BVP, EDA, HR and TEMP CSV files.";
+  if (activeSession) {
+    elements.previewSessionButton.disabled = false;
+    elements.workspaceStatus.textContent =
+      "BioDAW is online. Choose mappings, then preview the E4 session.";
+  }
 }
 
 function stopHelloTone() {
@@ -222,8 +223,10 @@ function renderSession(session) {
     .join("");
 
   elements.sessionPanel.hidden = false;
-  elements.workspaceStatus.textContent =
-    "E4 session validated locally. Choose mappings, then preview them in BioDAW.";
+  elements.previewSessionButton.disabled = !engineReady;
+  elements.workspaceStatus.textContent = engineReady
+    ? "E4 session validated locally. Choose mappings, then preview them in BioDAW."
+    : "E4 session validated locally. Start BioDAW above to preview the mappings.";
 }
 
 async function loadSession(files) {
@@ -278,7 +281,7 @@ async function droppedFiles(dataTransfer) {
 }
 
 async function previewSession() {
-  if (!activeSession) return;
+  if (!activeSession || !engineReady) return;
   stopSessionPreview();
   elements.previewSessionButton.disabled = true;
   elements.workspaceStatus.textContent =
@@ -326,7 +329,7 @@ async function previewSession() {
   previewTimers.push(
     window.setTimeout(() => {
       stopSessionPreview();
-      elements.previewSessionButton.disabled = false;
+      elements.previewSessionButton.disabled = !engineReady;
       elements.workspaceStatus.textContent =
         "Preview complete. The backend connection will replace this sketch with HeartSong generation.";
     }, 8 * stepLength + 300),
@@ -339,9 +342,10 @@ function clearSession() {
   sessionTrackIndexes = [];
   elements.folderInput.value = "";
   elements.sessionPanel.hidden = true;
-  elements.dropTitle.textContent = "Drop an E4 folder here";
+  elements.previewSessionButton.disabled = true;
+  elements.dropTitle.textContent = "Drop an E4 session folder here";
   elements.dropHelp.textContent =
-    "Or choose a folder containing ACC, BVP, EDA, HR and TEMP CSV files.";
+    "Drag the whole folder from your computer. ACC, BVP, EDA, HR and TEMP are required.";
 }
 
 elements.startButton.addEventListener("click", startEngine);
@@ -354,10 +358,7 @@ elements.folderInput.addEventListener("change", (event) =>
   loadSession([...event.target.files]),
 );
 elements.dropZone.addEventListener("click", (event) => {
-  if (
-    !elements.chooseFolderButton.disabled &&
-    event.target !== elements.chooseFolderButton
-  ) {
+  if (event.target !== elements.chooseFolderButton) {
     elements.folderInput.click();
   }
 });
@@ -369,9 +370,7 @@ elements.dropZone.addEventListener("keydown", (event) => {
 });
 elements.dropZone.addEventListener("dragover", (event) => {
   event.preventDefault();
-  if (!elements.chooseFolderButton.disabled) {
-    elements.dropZone.classList.add("is-dragging");
-  }
+  elements.dropZone.classList.add("is-dragging");
 });
 elements.dropZone.addEventListener("dragleave", () =>
   elements.dropZone.classList.remove("is-dragging"),
@@ -379,9 +378,7 @@ elements.dropZone.addEventListener("dragleave", () =>
 elements.dropZone.addEventListener("drop", async (event) => {
   event.preventDefault();
   elements.dropZone.classList.remove("is-dragging");
-  if (!elements.chooseFolderButton.disabled) {
-    await loadSession(await droppedFiles(event.dataTransfer));
-  }
+  await loadSession(await droppedFiles(event.dataTransfer));
 });
 elements.previewSessionButton.addEventListener("click", previewSession);
 elements.clearSessionButton.addEventListener("click", clearSession);
