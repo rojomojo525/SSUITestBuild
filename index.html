@@ -161,6 +161,12 @@
               Local mapping preview; full HeartSong generation requires the
               backend.
             </p>
+            <div class="preview-controls">
+              <label for="previewLength">Preview length <output id="previewLengthValue">30s</output></label>
+              <input id="previewLength" type="range" min="10" max="300" step="5" value="30" />
+              <label for="previewPlayhead">Playhead <output id="previewPlayheadValue">0:00</output></label>
+              <input id="previewPlayhead" type="range" min="0" max="30" step="0.1" value="0" disabled />
+            </div>
             <div>
               <button class="secondary-action" id="clearSessionButton" type="button">
                 Clear

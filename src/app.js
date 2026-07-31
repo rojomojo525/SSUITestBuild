@@ -43,6 +43,10 @@ const elements = {
   workspaceStatus: document.querySelector("#workspaceStatus"),
   clearSessionButton: document.querySelector("#clearSessionButton"),
   previewSessionButton: document.querySelector("#previewSessionButton"),
+  previewLength: document.querySelector("#previewLength"),
+  previewLengthValue: document.querySelector("#previewLengthValue"),
+  previewPlayhead: document.querySelector("#previewPlayhead"),
+  previewPlayheadValue: document.querySelector("#previewPlayheadValue"),
 };
 
 const runtimeBase = new URL("./biodaw/app", document.baseURI).href.replace(
@@ -57,7 +61,10 @@ let engineReady = false;
 let previewTimers = [];
 let sessionTrackIndexes = [];
 const previewStepCount = 40;
-const previewStepLength = 750;
+let previewDurationSeconds = 30;
+let previewOffsetSeconds = 0;
+let previewStartedAt = 0;
+let previewTicker = 0;
 
 const musicalRoles = {
   ACC: ["Motion melody", "Rhythmic trigger", "Filter motion"],
@@ -168,11 +175,25 @@ function playHelloTone() {
 function stopSessionPreview() {
   previewTimers.forEach(window.clearTimeout);
   previewTimers = [];
+  window.cancelAnimationFrame(previewTicker);
   sessionTrackIndexes.forEach((trackIndex) => {
     for (let pitch = 36; pitch <= 84; pitch += 1) {
       HeadlessAPI.stopSynthNote(trackIndex, pitch);
     }
   });
+}
+
+function updatePlayhead(value) {
+  const seconds = Math.max(0, Math.min(previewDurationSeconds, Number(value) || 0));
+  elements.previewPlayhead.value = String(seconds);
+  elements.previewPlayheadValue.textContent = formatDuration(seconds);
+}
+
+function tickPlayhead() {
+  if (!previewStartedAt) return;
+  const elapsed = previewOffsetSeconds + (performance.now() - previewStartedAt) / 1000;
+  updatePlayhead(Math.min(previewDurationSeconds, elapsed));
+  if (elapsed < previewDurationSeconds) previewTicker = requestAnimationFrame(tickPlayhead);
 }
 
 function formatDuration(seconds) {
@@ -228,6 +249,15 @@ function renderSession(session) {
     .join("");
 
   elements.sessionPanel.hidden = false;
+  const maxDuration = Math.max(...session.tracks.map((track) => track.durationSeconds));
+  previewDurationSeconds = Math.max(10, Math.min(300, Math.round(maxDuration)));
+  elements.previewLength.max = String(Math.max(10, Math.min(300, Math.round(maxDuration))));
+  elements.previewLength.value = String(Math.min(30, previewDurationSeconds));
+  previewDurationSeconds = Number(elements.previewLength.value);
+  elements.previewLengthValue.textContent = `${previewDurationSeconds}s`;
+  elements.previewPlayhead.max = String(previewDurationSeconds);
+  elements.previewPlayhead.disabled = false;
+  updatePlayhead(0);
   elements.previewSessionButton.disabled = !engineReady;
   elements.workspaceStatus.textContent = engineReady
     ? "E4 session validated locally. Choose mappings, then preview them in BioDAW."
@@ -285,10 +315,12 @@ async function droppedFiles(dataTransfer) {
   return (await Promise.all(entries.map(filesFromEntry))).flat();
 }
 
-async function previewSession() {
+async function previewSession(offset = Number(elements.previewPlayhead.value) || 0) {
   if (!activeSession || !engineReady) return;
   stopSessionPreview();
   elements.previewSessionButton.disabled = true;
+  previewOffsetSeconds = offset;
+  previewStartedAt = performance.now();
   elements.workspaceStatus.textContent =
     "Creating five BioDAW voices from the selected biometric mappings…";
 
@@ -309,13 +341,10 @@ async function previewSession() {
     const bioTrackIndex = sessionTrackIndexes[trackIndex];
     HeadlessAPI.setTrackInstrument(bioTrackIndex, 0, program);
 
-    const stride = Math.max(
-      1,
-      Math.floor(track.samples.length / previewStepCount),
-    );
-    const previewSamples = track.samples
-      .filter((_, index) => index % stride === 0)
-      .slice(0, previewStepCount);
+    const sampleStart = Math.floor((offset / Math.max(1, track.durationSeconds)) * track.samples.length);
+    const sampleEnd = Math.min(track.samples.length, Math.floor(((offset + previewDurationSeconds) / Math.max(1, track.durationSeconds)) * track.samples.length));
+    const previewSamples = track.samples.slice(sampleStart, sampleEnd).filter((_, index) => index % Math.max(1, Math.floor((sampleEnd - sampleStart) / previewStepCount)) === 0).slice(0, previewStepCount);
+    const previewStepLength = (previewDurationSeconds * 1000) / Math.max(1, previewSamples.length);
 
     previewSamples.forEach((sample, step) => {
       const pitch = sampleToMidi(track, sample, 48 + trackIndex * 2, 18);
@@ -334,14 +363,17 @@ async function previewSession() {
   });
 
   elements.workspaceStatus.textContent =
-    "Previewing 30 seconds mapped directly from the five E4 biometric streams.";
+    `Previewing ${formatDuration(previewDurationSeconds)} from the five E4 biometric streams.`;
+  previewTicker = requestAnimationFrame(tickPlayhead);
   previewTimers.push(
     window.setTimeout(() => {
       stopSessionPreview();
       elements.previewSessionButton.disabled = !engineReady;
+      previewStartedAt = 0;
+      updatePlayhead(previewDurationSeconds);
       elements.workspaceStatus.textContent =
         "Local mapping preview complete. Full HeartSong generation will use the backend algorithm.";
-    }, previewStepCount * previewStepLength + 300),
+    }, previewDurationSeconds * 1000 + 300),
   );
 }
 
@@ -408,6 +440,16 @@ elements.dropZone.addEventListener("drop", async (event) => {
   await loadSession(await droppedFiles(event.dataTransfer));
 });
 elements.previewSessionButton.addEventListener("click", previewSession);
+elements.previewLength.addEventListener("input", (event) => {
+  previewDurationSeconds = Number(event.target.value);
+  elements.previewLengthValue.textContent = `${previewDurationSeconds}s`;
+  elements.previewPlayhead.max = String(previewDurationSeconds);
+  updatePlayhead(Math.min(Number(elements.previewPlayhead.value), previewDurationSeconds));
+});
+elements.previewPlayhead.addEventListener("input", (event) => {
+  updatePlayhead(event.target.value);
+  if (previewStartedAt) previewSession(Number(event.target.value));
+});
 elements.clearSessionButton.addEventListener("click", clearSession);
 
 window.addEventListener("beforeunload", () => {
