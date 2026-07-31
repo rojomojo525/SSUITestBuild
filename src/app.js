@@ -215,7 +215,7 @@ function selectMarkup(options, selected) {
 }
 
 function renderSession(session) {
-  elements.sessionName.textContent = session.folderName;
+  elements.sessionName.textContent = `E4 · ${session.folderName}`;
   elements.signalCount.textContent = String(session.tracks.length);
   elements.sessionDuration.textContent = formatDuration(
     Math.max(...session.tracks.map((track) => track.durationSeconds)),
