@@ -65,6 +65,7 @@ let previewDurationSeconds = 30;
 let previewOffsetSeconds = 0;
 let previewStartedAt = 0;
 let previewTicker = 0;
+let previewPlaying = false;
 
 const musicalRoles = {
   ACC: ["Motion melody", "Rhythmic trigger", "Filter motion"],
@@ -176,6 +177,8 @@ function stopSessionPreview() {
   previewTimers.forEach(window.clearTimeout);
   previewTimers = [];
   window.cancelAnimationFrame(previewTicker);
+  previewPlaying = false;
+  elements.previewSessionButton.querySelector("span").textContent = "Play preview";
   sessionTrackIndexes.forEach((trackIndex) => {
     for (let pitch = 36; pitch <= 84; pitch += 1) {
       HeadlessAPI.stopSynthNote(trackIndex, pitch);
@@ -318,6 +321,8 @@ async function droppedFiles(dataTransfer) {
 async function previewSession(offset = Number(elements.previewPlayhead.value) || 0) {
   if (!activeSession || !engineReady) return;
   stopSessionPreview();
+  previewPlaying = true;
+  elements.previewSessionButton.querySelector("span").textContent = "Pause preview";
   elements.previewSessionButton.disabled = true;
   previewOffsetSeconds = offset;
   previewStartedAt = performance.now();
@@ -370,6 +375,8 @@ async function previewSession(offset = Number(elements.previewPlayhead.value) ||
       stopSessionPreview();
       elements.previewSessionButton.disabled = !engineReady;
       previewStartedAt = 0;
+      previewPlaying = false;
+      elements.previewSessionButton.querySelector("span").textContent = "Play preview";
       updatePlayhead(previewDurationSeconds);
       elements.workspaceStatus.textContent =
         "Local mapping preview complete. Full HeartSong generation will use the backend algorithm.";
@@ -439,7 +446,17 @@ elements.dropZone.addEventListener("drop", async (event) => {
   elements.dropZone.classList.remove("is-dragging");
   await loadSession(await droppedFiles(event.dataTransfer));
 });
-elements.previewSessionButton.addEventListener("click", previewSession);
+elements.previewSessionButton.addEventListener("click", () => {
+  if (previewPlaying) {
+    const elapsed = previewOffsetSeconds + (performance.now() - previewStartedAt) / 1000;
+    previewOffsetSeconds = Math.min(previewDurationSeconds, elapsed);
+    updatePlayhead(previewOffsetSeconds);
+    stopSessionPreview();
+    elements.workspaceStatus.textContent = "Preview paused. Move the playhead or press Play preview to continue.";
+  } else {
+    previewSession(Number(elements.previewPlayhead.value) || 0);
+  }
+});
 elements.previewLength.addEventListener("input", (event) => {
   previewDurationSeconds = Number(event.target.value);
   elements.previewLengthValue.textContent = `${previewDurationSeconds}s`;
