@@ -122,6 +122,7 @@ function parseContinuousSignal(name, text) {
 }
 
 export async function parseE4Session(files) {
+  const sourceName = files[0]?.name || files[0]?.webkitRelativePath?.split("/")[0];
   const expanded = [];
   for (const file of files) {
     if (file.name.toLowerCase().endsWith(".zip")) expanded.push(...(await unzipE4(file)));
@@ -146,8 +147,7 @@ export async function parseE4Session(files) {
 
   return {
     folderName:
-      files[0]?.webkitRelativePath?.split("/")[0] ||
-      files[0]?.name?.replace(/\.[^.]+$/, "") ||
+      sourceName?.replace(/\.[^.]+$/, "") ||
       "E4 Session",
     tracks,
     presentFiles: [...byName.keys()],

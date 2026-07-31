@@ -178,7 +178,7 @@ function stopSessionPreview() {
   previewTimers = [];
   window.cancelAnimationFrame(previewTicker);
   previewPlaying = false;
-  elements.previewSessionButton.querySelector("span").textContent = "Play preview";
+  elements.previewSessionButton.querySelector("span").textContent = "Play";
   sessionTrackIndexes.forEach((trackIndex) => {
     for (let pitch = 36; pitch <= 84; pitch += 1) {
       HeadlessAPI.stopSynthNote(trackIndex, pitch);
@@ -322,7 +322,7 @@ async function previewSession(offset = Number(elements.previewPlayhead.value) ||
   if (!activeSession || !engineReady) return;
   stopSessionPreview();
   previewPlaying = true;
-  elements.previewSessionButton.querySelector("span").textContent = "Pause preview";
+  elements.previewSessionButton.querySelector("span").textContent = "Pause";
   elements.previewSessionButton.disabled = true;
   previewOffsetSeconds = offset;
   previewStartedAt = performance.now();
@@ -376,7 +376,7 @@ async function previewSession(offset = Number(elements.previewPlayhead.value) ||
       elements.previewSessionButton.disabled = !engineReady;
       previewStartedAt = 0;
       previewPlaying = false;
-      elements.previewSessionButton.querySelector("span").textContent = "Play preview";
+      elements.previewSessionButton.querySelector("span").textContent = "Play";
       updatePlayhead(previewDurationSeconds);
       elements.workspaceStatus.textContent =
         "Local mapping preview complete. Full HeartSong generation will use the backend algorithm.";
@@ -452,7 +452,7 @@ elements.previewSessionButton.addEventListener("click", () => {
     previewOffsetSeconds = Math.min(previewDurationSeconds, elapsed);
     updatePlayhead(previewOffsetSeconds);
     stopSessionPreview();
-    elements.workspaceStatus.textContent = "Preview paused. Move the playhead or press Play preview to continue.";
+    elements.workspaceStatus.textContent = "Preview paused. Move the playhead or press Play to continue.";
   } else {
     previewSession(Number(elements.previewPlayhead.value) || 0);
   }
