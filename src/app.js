@@ -250,8 +250,8 @@ function renderSession(session) {
 
   elements.sessionPanel.hidden = false;
   const maxDuration = Math.max(...session.tracks.map((track) => track.durationSeconds));
-  previewDurationSeconds = Math.max(10, Math.min(300, Math.round(maxDuration)));
-  elements.previewLength.max = String(Math.max(10, Math.min(300, Math.round(maxDuration))));
+  previewDurationSeconds = Math.max(10, Math.min(3600, Math.round(maxDuration)));
+  elements.previewLength.max = String(Math.max(10, Math.min(3600, Math.round(maxDuration))));
   elements.previewLength.value = String(Math.min(30, previewDurationSeconds));
   previewDurationSeconds = Number(elements.previewLength.value);
   elements.previewLengthValue.textContent = `${previewDurationSeconds}s`;
