@@ -47,6 +47,8 @@ const elements = {
   previewLengthValue: document.querySelector("#previewLengthValue"),
   previewPlayhead: document.querySelector("#previewPlayhead"),
   previewPlayheadValue: document.querySelector("#previewPlayheadValue"),
+  previewVolume: document.querySelector("#previewVolume"),
+  previewVolumeValue: document.querySelector("#previewVolumeValue"),
 };
 
 const runtimeBase = new URL("./biodaw/app", document.baseURI).href.replace(
@@ -66,6 +68,7 @@ let previewOffsetSeconds = 0;
 let previewStartedAt = 0;
 let previewTicker = 0;
 let previewPlaying = false;
+let previewVolume = 0.35;
 
 const musicalRoles = {
   ACC: ["Motion melody", "Rhythmic trigger", "Filter motion"],
@@ -335,6 +338,7 @@ async function previewSession(offset = Number(elements.previewPlayhead.value) ||
       const project = HeadlessAPI.getProjectData();
       const trackIndex = project.tracks.findIndex((item) => item.id === created.id);
       sessionTrackIndexes[index] = trackIndex;
+      HeadlessAPI.setTrackVolume(created.id, previewVolume);
     }
   }
 
@@ -344,6 +348,8 @@ async function previewSession(offset = Number(elements.previewPlayhead.value) ||
     const row = rows[trackIndex];
     const program = Number(row.querySelector(".instrument-select").value);
     const bioTrackIndex = sessionTrackIndexes[trackIndex];
+    const bioTrack = HeadlessAPI.getProjectData().tracks[bioTrackIndex];
+    if (bioTrack) HeadlessAPI.setTrackVolume(bioTrack.id, previewVolume);
     HeadlessAPI.setTrackInstrument(bioTrackIndex, 0, program);
 
     const sampleStart = Math.floor((offset / Math.max(1, track.durationSeconds)) * track.samples.length);
@@ -466,6 +472,14 @@ elements.previewLength.addEventListener("input", (event) => {
 elements.previewPlayhead.addEventListener("input", (event) => {
   updatePlayhead(event.target.value);
   if (previewStartedAt) previewSession(Number(event.target.value));
+});
+elements.previewVolume.addEventListener("input", (event) => {
+  previewVolume = Number(event.target.value) / 100;
+  elements.previewVolumeValue.textContent = `${Math.round(previewVolume * 100)}%`;
+  sessionTrackIndexes.forEach((trackIndex) => {
+    const track = HeadlessAPI.getProjectData().tracks[trackIndex];
+    if (track) HeadlessAPI.setTrackVolume(track.id, previewVolume);
+  });
 });
 elements.clearSessionButton.addEventListener("click", clearSession);
 
