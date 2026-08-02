@@ -63,7 +63,7 @@ const elements = {
   ),
 };
 
-const runtimeBase = new URL("./biodaw/app", document.baseURI).href.replace(
+const runtimeBase = new URL("./app", document.baseURI).href.replace(
   /\/$/,
   "",
 );

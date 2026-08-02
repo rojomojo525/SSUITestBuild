@@ -11,7 +11,7 @@ if (!fs.existsSync(sdkRoot)) {
   throw new Error(`BioDAW SDK assets are missing at ${sdkRoot}. Run npm install.`);
 }
 
-fs.cpSync(path.join(sdkRoot, "app"), path.join(publicRoot, "biodaw", "app"), {
+fs.cpSync(path.join(sdkRoot, "app"), path.join(publicRoot, "app"), {
   recursive: true,
   force: true,
 });
