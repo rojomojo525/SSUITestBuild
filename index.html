@@ -17,8 +17,67 @@
           <span class="wordmark-mark" aria-hidden="true"></span>
           <span>StateSong</span>
         </a>
-        <span class="build-label">UI TEST BUILD · 001</span>
+        <div class="masthead-meta">
+          <span class="build-label">UI TEST BUILD · 002</span>
+          <span class="auth-pill" id="authPill">Public mode</span>
+        </div>
       </header>
+
+      <section class="backend-panel" aria-labelledby="backend-title">
+        <div>
+          <p class="step-label">SECURE MEDIMUSE BACKEND</p>
+          <h2 id="backend-title">Connect your StateSong session.</h2>
+          <p id="authStatus" class="backend-status" aria-live="polite">
+            Checking for an existing secure login…
+          </p>
+        </div>
+        <dl class="backend-details">
+          <div>
+            <dt>User</dt>
+            <dd id="userDisplay">Public user</dd>
+          </div>
+          <div>
+            <dt>License</dt>
+            <dd id="licenseDisplay">Not authenticated</dd>
+          </div>
+          <div>
+            <dt>Session</dt>
+            <dd id="backendSessionDisplay">Not created</dd>
+          </div>
+          <div>
+            <dt>Server</dt>
+            <dd>biodaw.com</dd>
+          </div>
+        </dl>
+        <div class="backend-controls">
+          <button class="primary-action" id="loginButton" type="button">
+            Login / Register
+          </button>
+          <button
+            class="secondary-action"
+            id="createBackendSessionButton"
+            type="button"
+            disabled
+          >
+            Create secure session
+          </button>
+          <button class="secondary-action" id="logoutButton" type="button" hidden>
+            Logout
+          </button>
+          <a
+            class="api-reference-link"
+            href="https://biodaw.com/swagger-ui/index.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            MediMuse API reference ↗
+          </a>
+        </div>
+        <p class="backend-boundary">
+          Login and session access are live. HeartSong audio and MIDI generation
+          remain in development and are not represented as available here.
+        </p>
+      </section>
 
       <section class="hero" aria-labelledby="page-title">
         <div class="eyebrow">
@@ -202,7 +261,7 @@
           </div>
           <div>
             <dt>MediMuse</dt>
-            <dd id="medimuseProof">Client detected</dd>
+            <dd id="medimuseProof">Secure client ready</dd>
           </div>
           <div>
             <dt>Audio</dt>

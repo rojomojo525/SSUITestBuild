@@ -1,3 +1,7 @@
+import Keycloak from "keycloak-js";
+import { HeadlessAPI } from "biodaw";
+import keycloakConfig from "./keycloak-config.js";
+
 async function establishAudioIsolation() {
   if (window.crossOriginIsolated || !("serviceWorker" in navigator)) return;
 
@@ -13,8 +17,6 @@ async function establishAudioIsolation() {
 
 await establishAudioIsolation();
 
-const sdkUrl = new URL("./biodaw/biodaw-sdk.es.js", document.baseURI).href;
-const { HeadlessAPI } = await import(sdkUrl);
 const { parseE4Session, sampleToMidi } = await import("./e4-parser.js");
 
 const elements = {
@@ -49,6 +51,16 @@ const elements = {
   previewPlayheadValue: document.querySelector("#previewPlayheadValue"),
   previewVolume: document.querySelector("#previewVolume"),
   previewVolumeValue: document.querySelector("#previewVolumeValue"),
+  authPill: document.querySelector("#authPill"),
+  authStatus: document.querySelector("#authStatus"),
+  userDisplay: document.querySelector("#userDisplay"),
+  licenseDisplay: document.querySelector("#licenseDisplay"),
+  backendSessionDisplay: document.querySelector("#backendSessionDisplay"),
+  loginButton: document.querySelector("#loginButton"),
+  logoutButton: document.querySelector("#logoutButton"),
+  createBackendSessionButton: document.querySelector(
+    "#createBackendSessionButton",
+  ),
 };
 
 const runtimeBase = new URL("./biodaw/app", document.baseURI).href.replace(
@@ -62,6 +74,7 @@ let activeSession = null;
 let engineReady = false;
 let previewTimers = [];
 let sessionTrackIndexes = [];
+let tokenRefreshInterval = null;
 const previewStepCount = 40;
 let previewDurationSeconds = 30;
 let previewOffsetSeconds = 0;
@@ -69,6 +82,8 @@ let previewStartedAt = 0;
 let previewTicker = 0;
 let previewPlaying = false;
 let previewVolume = 0.35;
+const keycloak = new Keycloak(keycloakConfig);
+const MediMuseAPI = HeadlessAPI.MediMuse;
 
 const musicalRoles = {
   ACC: ["Motion melody", "Rhythmic trigger", "Filter motion"],
@@ -90,6 +105,121 @@ const instruments = [
   { value: 81, label: "Saw synth" },
   { value: 89, label: "Warm pad" },
 ];
+
+function setAuthenticatedUI(isAuthenticated) {
+  elements.loginButton.hidden = isAuthenticated;
+  elements.logoutButton.hidden = !isAuthenticated;
+  elements.createBackendSessionButton.disabled = !isAuthenticated;
+  elements.authPill.textContent = isAuthenticated ? "Secure session" : "Public mode";
+  elements.authPill.classList.toggle("is-authenticated", isAuthenticated);
+
+  if (!isAuthenticated) {
+    elements.userDisplay.textContent = "Public user";
+    elements.licenseDisplay.textContent = "Not authenticated";
+    elements.backendSessionDisplay.textContent = "Not created";
+    if (tokenRefreshInterval) {
+      window.clearInterval(tokenRefreshInterval);
+      tokenRefreshInterval = null;
+    }
+  }
+}
+
+function updateLicenseDisplay() {
+  const claims = keycloak.tokenParsed || {};
+  const licenseType = claims.type_lic;
+  const expiry = claims.lic_exp_human;
+
+  if (licenseType === "SUPER") {
+    elements.licenseDisplay.textContent = "Pro access";
+  } else if (licenseType && expiry) {
+    elements.licenseDisplay.textContent = `${licenseType} · expires ${expiry}`;
+  } else {
+    elements.licenseDisplay.textContent = licenseType || "Authenticated";
+  }
+}
+
+async function loadAuthenticatedProfile() {
+  try {
+    const profile = await keycloak.loadUserProfile();
+    elements.userDisplay.textContent =
+      profile.firstName || profile.username || profile.email || "Authenticated user";
+  } catch {
+    elements.userDisplay.textContent =
+      keycloak.tokenParsed?.preferred_username || "Authenticated user";
+  }
+}
+
+function startTokenRefresh() {
+  if (tokenRefreshInterval) window.clearInterval(tokenRefreshInterval);
+
+  tokenRefreshInterval = window.setInterval(async () => {
+    try {
+      await keycloak.updateToken(30);
+    } catch (error) {
+      console.error("[StateSong] Keycloak token refresh failed", error);
+      setAuthenticatedUI(false);
+      elements.authStatus.textContent =
+        "Your secure session expired. Please sign in again.";
+    }
+  }, 10000);
+}
+
+async function initializeAuthentication() {
+  MediMuseAPI.setTokenProvider(async () => {
+    if (!keycloak.authenticated) return null;
+    await keycloak.updateToken(30);
+    return keycloak.token;
+  });
+
+  try {
+    const authenticated = await keycloak.init({
+      onLoad: "check-sso",
+      checkLoginIframe: false,
+      pkceMethod: "S256",
+      silentCheckSsoRedirectUri: new URL(
+        "silent-check-sso.html",
+        document.baseURI,
+      ).href,
+    });
+
+    setAuthenticatedUI(authenticated);
+    if (!authenticated) {
+      elements.authStatus.textContent =
+        "Local E4 preview is available. Sign in for secured MediMuse services.";
+      return;
+    }
+
+    updateLicenseDisplay();
+    await loadAuthenticatedProfile();
+    startTokenRefresh();
+    elements.authStatus.textContent =
+      "Authenticated with Keycloak. The MediMuse client is ready.";
+  } catch (error) {
+    console.error("[StateSong] Keycloak initialization failed", error);
+    setAuthenticatedUI(false);
+    elements.authStatus.textContent =
+      "Secure login could not initialize. Local E4 preview remains available.";
+  }
+}
+
+async function createBackendSession() {
+  elements.createBackendSessionButton.disabled = true;
+  elements.authStatus.textContent = "Creating a secure MediMuse session…";
+
+  try {
+    const session = await MediMuseAPI.createSession();
+    const sessionId = MediMuseAPI.sessionId || session.name;
+    elements.backendSessionDisplay.textContent = sessionId || "Created";
+    elements.authStatus.textContent =
+      "Secure MediMuse session connected. Generation remains in development.";
+  } catch (error) {
+    console.error("[StateSong] MediMuse session creation failed", error);
+    elements.authStatus.textContent =
+      "MediMuse rejected the session request. Please sign in again or try later.";
+  } finally {
+    elements.createBackendSessionButton.disabled = !keycloak.authenticated;
+  }
+}
 
 function setStatus(state, message) {
   elements.engineState.textContent = state;
@@ -482,6 +612,19 @@ elements.previewVolume.addEventListener("input", (event) => {
   });
 });
 elements.clearSessionButton.addEventListener("click", clearSession);
+elements.loginButton.addEventListener("click", () =>
+  keycloak.login({ redirectUri: window.location.href.split("#")[0] }),
+);
+elements.logoutButton.addEventListener("click", () =>
+  keycloak.logout({ redirectUri: window.location.href.split("#")[0] }),
+);
+elements.createBackendSessionButton.addEventListener(
+  "click",
+  createBackendSession,
+);
+
+setAuthenticatedUI(false);
+initializeAuthentication();
 
 window.addEventListener("beforeunload", () => {
   stopSessionPreview();

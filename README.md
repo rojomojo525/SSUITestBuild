@@ -56,15 +56,24 @@ gesture before activating an audio engine.
 
 ## Project status
 
-The first Hello rOjO application integrates the packaged BioDAW 1.0.0 SDK,
-boots its WebAssembly audio engine in the browser, detects the MediMuse client,
-and provides a playable BioDAW synthesizer check.
+The Hello rOjO application consumes Peter Slack's published BioDAW 1.0.1
+package as a declared dependency, boots its WebAssembly audio engine in the
+browser, detects the MediMuse client, and provides a playable synthesizer
+check.
+
+The client uses Keycloak with PKCE for login, supplies refreshed bearer tokens
+to `HeadlessAPI.MediMuse`, and can create an authenticated MediMuse session
+through the temporary `https://biodaw.com/` proxy. The published MediMuse
+OpenAPI reference is linked from the application and remains the authority for
+backend capabilities not wrapped by the BioDAW library.
 
 The recorded E4 studio accepts an extracted Empatica session folder, validates
 and parses ACC, BVP, EDA, HR, and TEMP locally, presents each signal as a
-configurable musical track, and produces a short BioDAW mapping preview. The
-authenticated HeartSong generation call and real-time OSC/WebSocket bridge
-remain the next integration milestones.
+configurable musical track, and produces a short BioDAW mapping preview. Audio
+and MIDI generation endpoints exist in the backend contract but remain work in
+progress; the local mapping preview is not presented as HeartSong output. The
+authenticated HeartSong generation flow and real-time OSC/WebSocket bridge are
+the next integration milestones.
 
 ## Stewardship
 

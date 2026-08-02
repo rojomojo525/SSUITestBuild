@@ -4,11 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "prepare:assets": "node ./scripts/sync-sdk-assets.mjs",
+    "dev": "npm run prepare:assets && vite",
+    "build": "npm run prepare:assets && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
     "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "biodaw": "https://devpoint.medimuse.io/biodaw-1.0.1.tgz",
+    "keycloak-js": "^26.2.4"
   }
 }
