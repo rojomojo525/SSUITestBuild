@@ -90,6 +90,21 @@
         <h2>Available biometric tracks</h2>
         <p id="biometricTracksSummary" class="panel-copy"></p>
         <ul id="biometricTracksList" class="track-list"></ul>
+        <div id="biometricChartPanel" class="biometric-chart" hidden>
+          <div class="chart-controls">
+            <label for="biometricChartTrack">
+              <span>CHART A BIOMETRIC TRACK</span>
+              <select id="biometricChartTrack"></select>
+            </label>
+            <button id="loadBiometricChartBtn" class="secondary">
+              Display biometric chart
+            </button>
+          </div>
+          <p id="biometricChartStatus" class="data-status" aria-live="polite"></p>
+          <div id="biometricChartFrame" class="chart-frame" hidden>
+            <canvas id="biometricChartCanvas" role="img"></canvas>
+          </div>
+        </div>
       </section>
 
       <section class="panel boundary-panel">
