@@ -17,6 +17,9 @@ const createSessionBtn = document.getElementById('createSessionBtn');
 const publicFolderSelect = document.getElementById('publicFolderSelect');
 const loadPublicFolderBtn = document.getElementById('loadPublicFolderBtn');
 const publicDataStatusEl = document.getElementById('publicDataStatus');
+const biometricTracksPanel = document.getElementById('biometricTracksPanel');
+const biometricTracksSummary = document.getElementById('biometricTracksSummary');
+const biometricTracksList = document.getElementById('biometricTracksList');
 
 function log(message, data) {
   if (data === undefined) {
@@ -53,6 +56,85 @@ function renderFolderOptions(folders) {
   loadPublicFolderBtn.disabled = true;
 }
 
+function clearBiometricTracks() {
+  biometricTracksList.replaceChildren();
+  biometricTracksSummary.textContent = '';
+  biometricTracksPanel.hidden = true;
+}
+
+function normalizeStagedTracks(stagedTracks) {
+  if (Array.isArray(stagedTracks)) return stagedTracks;
+  if (!stagedTracks || typeof stagedTracks !== 'object') return [];
+
+  return Object.entries(stagedTracks).map(([key, track]) => (
+    track && typeof track === 'object'
+      ? { _trackKey: key, ...track }
+      : { _trackKey: key, value: track }
+  ));
+}
+
+function trackName(track, index) {
+  if (typeof track === 'string') return track;
+  return track?.name
+    || track?.trackName
+    || track?.biometricType
+    || track?.metric
+    || track?.channel
+    || track?.type
+    || track?._trackKey
+    || `Biometric track ${index + 1}`;
+}
+
+function trackDetails(track) {
+  if (!track || typeof track !== 'object') return '';
+
+  const details = [
+    ['Format', track.format || track.fileType],
+    ['Sample rate', track.sampleRate || track.samplingRate],
+    ['Samples', track.sampleCount || track.samplesCount || track.length],
+    ['Source', track.fileName || track.path || track.url]
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '');
+
+  return details.map(([label, value]) => `${label}: ${value}`).join(' · ');
+}
+
+function renderBiometricTracks(sessionState) {
+  const tracks = normalizeStagedTracks(sessionState?.stagedTracks);
+  biometricTracksList.replaceChildren();
+
+  tracks.forEach((track, index) => {
+    const item = document.createElement('li');
+    const name = document.createElement('strong');
+    const details = document.createElement('span');
+
+    name.textContent = trackName(track, index);
+    details.textContent = trackDetails(track);
+    item.append(name);
+    if (details.textContent) item.append(details);
+    biometricTracksList.append(item);
+  });
+
+  biometricTracksSummary.textContent = tracks.length
+    ? `${tracks.length} biometric track${tracks.length === 1 ? '' : 's'} staged and available.`
+    : 'MediMuse reports READY_FOR_DOWNLOAD, but no staged biometric tracks were returned.';
+  biometricTracksPanel.hidden = false;
+}
+
+async function waitForReadySessionState(maxAttempts = 30) {
+  let latestState = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    latestState = await MediMuseAPI.getSessionState();
+    const stateLabel = latestState?.sessionState || latestState?.state;
+    if (stateLabel === 'READY_FOR_DOWNLOAD') return latestState;
+    if (attempt < maxAttempts - 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    }
+  }
+
+  return latestState;
+}
+
 function updateAuthenticatedUI(isAuthenticated) {
   loginBtn.hidden = isAuthenticated;
   logoutBtn.hidden = !isAuthenticated;
@@ -64,6 +146,7 @@ function updateAuthenticatedUI(isAuthenticated) {
     licenseDisplayEl.textContent = 'Unlicensed';
     sessionDisplayEl.textContent = 'Not created';
     renderFolderOptions([]);
+    clearBiometricTracks();
     publicFolderSelect.firstElementChild.textContent = 'Login and start a session first';
     publicDataStatusEl.textContent = 'Waiting for secure access.';
     if (tokenRefreshInterval) {
@@ -183,6 +266,7 @@ logoutBtn.addEventListener('click', async () => {
 
 createSessionBtn.addEventListener('click', async () => {
   createSessionBtn.disabled = true;
+  clearBiometricTracks();
   try {
     authStatusEl.textContent = 'Creating a secure MediMuse session…';
     publicDataStatusEl.textContent = 'Preparing the public-data workflow…';
@@ -212,11 +296,15 @@ loadPublicFolderBtn.addEventListener('click', async () => {
   if (!selectedFolder || !MediMuseAPI.sessionId) return;
 
   loadPublicFolderBtn.disabled = true;
+  clearBiometricTracks();
   try {
     publicDataStatusEl.textContent = `Loading ${selectedFolder} into the secure session…`;
     const result = await MediMuseAPI.loadPublicFolder(selectedFolder);
-    const sessionState = await MediMuseAPI.getSessionState().catch(() => null);
+    const sessionState = await waitForReadySessionState().catch(() => null);
     const stateLabel = sessionState?.sessionState || sessionState?.state;
+    if (stateLabel === 'READY_FOR_DOWNLOAD') {
+      renderBiometricTracks(sessionState);
+    }
     publicDataStatusEl.textContent = stateLabel
       ? `${selectedFolder} is loaded. MediMuse reports: ${stateLabel}.`
       : `${selectedFolder} is loaded and ready in MediMuse.`;

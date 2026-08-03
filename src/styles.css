@@ -201,6 +201,38 @@ h2 {
   line-height: 1.45;
 }
 
+.tracks-panel {
+  grid-column: 1 / -1;
+}
+
+.track-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track-list li {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #2f3d54;
+  border-radius: 10px;
+  background: #111722;
+}
+
+.track-list strong {
+  color: var(--accent);
+}
+
+.track-list span {
+  color: #aab4c3;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .boundary-panel p:not(.eyebrow) {
   max-width: 720px;
   color: #aab4c3;
