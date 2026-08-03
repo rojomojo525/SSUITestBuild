@@ -72,6 +72,19 @@
         </p>
       </section>
 
+      <section id="targetStatesPanel" class="panel target-states-panel" hidden>
+        <p class="eyebrow">Session configuration</p>
+        <h2>Active biometric states</h2>
+        <p id="targetStatesSummary" class="panel-copy">
+          Choose any, all, or none of the available states for this MediMuse session.
+        </p>
+        <fieldset id="targetStatesMatrix" class="boolean-matrix"></fieldset>
+        <button id="applyTargetStatesBtn" class="primary" disabled>
+          Apply active biometric states
+        </button>
+        <p id="targetStatesStatus" class="data-status" aria-live="polite"></p>
+      </section>
+
       <section id="biometricTracksPanel" class="panel tracks-panel" hidden>
         <p class="eyebrow">READY FOR DOWNLOAD</p>
         <h2>Available biometric tracks</h2>

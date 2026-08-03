@@ -17,6 +17,11 @@ const createSessionBtn = document.getElementById('createSessionBtn');
 const publicFolderSelect = document.getElementById('publicFolderSelect');
 const loadPublicFolderBtn = document.getElementById('loadPublicFolderBtn');
 const publicDataStatusEl = document.getElementById('publicDataStatus');
+const targetStatesPanel = document.getElementById('targetStatesPanel');
+const targetStatesSummary = document.getElementById('targetStatesSummary');
+const targetStatesMatrix = document.getElementById('targetStatesMatrix');
+const applyTargetStatesBtn = document.getElementById('applyTargetStatesBtn');
+const targetStatesStatus = document.getElementById('targetStatesStatus');
 const biometricTracksPanel = document.getElementById('biometricTracksPanel');
 const biometricTracksSummary = document.getElementById('biometricTracksSummary');
 const biometricTracksList = document.getElementById('biometricTracksList');
@@ -60,6 +65,63 @@ function clearBiometricTracks() {
   biometricTracksList.replaceChildren();
   biometricTracksSummary.textContent = '';
   biometricTracksPanel.hidden = true;
+}
+
+function stateValue(state) {
+  if (typeof state === 'string') return state;
+  return state?.name || state?.state || state?.id || String(state);
+}
+
+function selectedTargetStates(sessionState) {
+  const selected = sessionState?.activeBiometricStates
+    || sessionState?.targetStates
+    || sessionState?.selectedTargetStates
+    || sessionState?.targetStateSelections
+    || [];
+  return new Set(Array.isArray(selected) ? selected.map(stateValue) : []);
+}
+
+function clearTargetStates() {
+  targetStatesMatrix.replaceChildren();
+  targetStatesPanel.hidden = true;
+  applyTargetStatesBtn.disabled = true;
+  targetStatesStatus.textContent = '';
+}
+
+function renderTargetStates(sessionState) {
+  const available = Array.isArray(sessionState?.availableTargetStates)
+    ? sessionState.availableTargetStates.map(stateValue)
+    : [];
+  const selected = selectedTargetStates(sessionState);
+  targetStatesMatrix.replaceChildren();
+
+  available.forEach((targetState, index) => {
+    const option = document.createElement('label');
+    const checkbox = document.createElement('input');
+    const label = document.createElement('span');
+
+    checkbox.type = 'checkbox';
+    checkbox.name = 'targetState';
+    checkbox.value = targetState;
+    checkbox.checked = selected.has(targetState);
+    checkbox.id = `target-state-${index}`;
+    label.textContent = targetState;
+    option.append(checkbox, label);
+    targetStatesMatrix.append(option);
+  });
+
+  targetStatesSummary.textContent = available.length
+    ? `${available.length} available state${available.length === 1 ? '' : 's'}. Choose any, all, or none as active biometric states.`
+    : 'This session did not return any available target states.';
+  applyTargetStatesBtn.disabled = available.length === 0;
+  targetStatesPanel.hidden = false;
+}
+
+async function refreshTargetStates() {
+  if (!MediMuseAPI.sessionId) return null;
+  const sessionState = await MediMuseAPI.getSessionState();
+  renderTargetStates(sessionState);
+  return sessionState;
 }
 
 function normalizeStagedTracks(stagedTracks) {
@@ -146,6 +208,7 @@ function updateAuthenticatedUI(isAuthenticated) {
     licenseDisplayEl.textContent = 'Unlicensed';
     sessionDisplayEl.textContent = 'Not created';
     renderFolderOptions([]);
+    clearTargetStates();
     clearBiometricTracks();
     publicFolderSelect.firstElementChild.textContent = 'Login and start a session first';
     publicDataStatusEl.textContent = 'Waiting for secure access.';
@@ -274,6 +337,7 @@ createSessionBtn.addEventListener('click', async () => {
     sessionDisplayEl.textContent = MediMuseAPI.sessionId || session.name || 'Created';
     authStatusEl.textContent = 'Secure session created.';
     log('Session created.', session);
+    await refreshTargetStates();
     await loadPublicFolders();
   } catch (error) {
     authStatusEl.textContent = 'Session creation failed.';
@@ -305,6 +369,7 @@ loadPublicFolderBtn.addEventListener('click', async () => {
     if (stateLabel === 'READY_FOR_DOWNLOAD') {
       renderBiometricTracks(sessionState);
     }
+    if (sessionState) renderTargetStates(sessionState);
     publicDataStatusEl.textContent = stateLabel
       ? `${selectedFolder} is loaded. MediMuse reports: ${stateLabel}.`
       : `${selectedFolder} is loaded and ready in MediMuse.`;
@@ -313,6 +378,28 @@ loadPublicFolderBtn.addEventListener('click', async () => {
     publicDataStatusEl.textContent = `MediMuse could not load ${selectedFolder}.`;
     loadPublicFolderBtn.disabled = false;
     log('Public folder load failed.', error.message);
+  }
+});
+
+applyTargetStatesBtn.addEventListener('click', async () => {
+  if (!MediMuseAPI.sessionId) return;
+
+  const selected = Array.from(
+    targetStatesMatrix.querySelectorAll('input[name="targetState"]:checked'),
+    (checkbox) => checkbox.value
+  );
+
+  applyTargetStatesBtn.disabled = true;
+  targetStatesStatus.textContent = 'Applying active biometric states to this session…';
+  try {
+    const result = await MediMuseAPI.updateTargetStates(selected);
+    const sessionState = await refreshTargetStates();
+    targetStatesStatus.textContent = `${selected.length} active biometric state${selected.length === 1 ? '' : 's'} applied.`;
+    log('Active biometric states updated.', { selected, result, sessionState });
+  } catch (error) {
+    applyTargetStatesBtn.disabled = false;
+    targetStatesStatus.textContent = 'MediMuse could not update the active biometric states.';
+    log('Active biometric-state update failed.', error.message);
   }
 });
 
