@@ -564,6 +564,20 @@ loadPublicFolderBtn.addEventListener('click', async () => {
   loadPublicFolderBtn.disabled = true;
   clearBiometricTracks();
   try {
+    const currentSessionState = await MediMuseAPI.getSessionState();
+    const currentStateLabel = currentSessionState?.sessionState || currentSessionState?.state;
+    if (currentStateLabel === 'READY_FOR_DOWNLOAD') {
+      publicDataStatusEl.textContent = `Starting a new secure session before loading ${selectedFolder}…`;
+      const replacementSession = await MediMuseAPI.createSession();
+      clearTargetStates();
+      sessionDisplayEl.textContent = MediMuseAPI.sessionId || replacementSession.name || 'Created';
+      await refreshTargetStates();
+      log('Completed session replaced before loading another public dataset.', {
+        previousState: currentStateLabel,
+        replacementSession
+      });
+    }
+
     publicDataStatusEl.textContent = `Loading ${selectedFolder} into the secure session…`;
     const result = await MediMuseAPI.loadPublicFolder(selectedFolder);
     const sessionState = await waitForReadySessionState().catch(() => null);
