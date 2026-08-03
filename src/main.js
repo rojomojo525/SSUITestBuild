@@ -7,6 +7,7 @@ const keycloak = new Keycloak(keycloakConfig);
 const MediMuseAPI = HeadlessAPI.MediMuse;
 let tokenRefreshInterval = null;
 let selectedTargetStateValues = new Set();
+let renderedBiometricChart = null;
 
 const authStatusEl = document.getElementById('authStatus');
 const userDisplayEl = document.getElementById('userDisplay');
@@ -69,6 +70,7 @@ function renderFolderOptions(folders) {
 }
 
 function clearBiometricTracks() {
+  renderedBiometricChart = null;
   biometricTracksList.replaceChildren();
   biometricTracksSummary.textContent = '';
   biometricChartTrack.replaceChildren();
@@ -122,7 +124,7 @@ function renderTargetStates(sessionState) {
   targetStatesSummary.textContent = available.length
     ? `${available.length} available state${available.length === 1 ? '' : 's'}. Choose any, all, or none as active biometric states.`
     : 'This session did not return any available target states.';
-  applyTargetStatesBtn.disabled = available.length === 0;
+  applyTargetStatesBtn.disabled = available.length === 0 || !MediMuseAPI.sessionId;
   targetStatesPanel.hidden = false;
 }
 
@@ -169,19 +171,18 @@ function trackDetails(track) {
   return details.map(([label, value]) => `${label}: ${value}`).join(' · ');
 }
 
-function trackIdentifier(track) {
+function trackUuid(track) {
   if (typeof track === 'string') return track;
-  return track?.trackId
-    || track?.id
-    || track?.name
-    || track?.trackName
+  return track?.trackUuid
+    || track?.uuid
     || track?._trackKey
     || null;
 }
 
-function numericSeries(payload) {
+function globalTrackSeries(payload) {
   const candidates = [
     payload,
+    payload?.globalTrackData,
     payload?.data,
     payload?.samples,
     payload?.values,
@@ -191,10 +192,20 @@ function numericSeries(payload) {
   for (const candidate of candidates) {
     if (!Array.isArray(candidate) || candidate.length === 0) continue;
     if (candidate.every((value) => typeof value === 'number' && Number.isFinite(value))) {
-      return candidate;
+      return [{ label: 'Value', values: candidate }];
     }
-    if (candidate.every((value) => Array.isArray(value) && typeof value[0] === 'number' && Number.isFinite(value[0]))) {
-      return candidate.map((value) => value[0]);
+    if (candidate.every((sample) => (
+      Array.isArray(sample)
+      && sample.length > 0
+      && sample.every((value) => typeof value === 'number' && Number.isFinite(value))
+    ))) {
+      const dimensionCount = candidate[0].length;
+      if (candidate.every((sample) => sample.length === dimensionCount)) {
+        return Array.from({ length: dimensionCount }, (_, dimension) => ({
+          label: `Dimension ${dimension + 1}`,
+          values: candidate.map((sample) => sample[dimension])
+        }));
+      }
     }
   }
   return null;
@@ -209,50 +220,131 @@ function responseShape(payload) {
   return typeof payload;
 }
 
-function renderBiometricChart(samples, label) {
+function validTrackStatistic(statistic) {
+  return statistic
+    && typeof statistic.minimum === 'number'
+    && Number.isFinite(statistic.minimum)
+    && typeof statistic.maximum === 'number'
+    && Number.isFinite(statistic.maximum);
+}
+
+function drawBiometricChart(chart) {
+  const { series, label, bounds } = chart;
   const canvas = biometricChartCanvas;
   const context = canvas.getContext('2d');
-  const width = Math.max(640, Math.floor(canvas.clientWidth * window.devicePixelRatio));
-  const height = Math.floor(300 * window.devicePixelRatio);
+  const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+  const cssWidth = Math.max(280, canvas.clientWidth);
+  const cssHeight = 300;
+  const width = Math.floor(cssWidth * pixelRatio);
+  const height = Math.floor(cssHeight * pixelRatio);
   canvas.width = width;
   canvas.height = height;
 
-  const maxPoints = Math.max(2, Math.floor(width / 2));
-  const stride = Math.max(1, Math.ceil(samples.length / maxPoints));
-  const plotted = samples.filter((_, index) => index % stride === 0);
-  if (plotted[plotted.length - 1] !== samples[samples.length - 1]) plotted.push(samples[samples.length - 1]);
-
-  const minimum = Math.min(...plotted);
-  const maximum = Math.max(...plotted);
+  const sampleCount = series[0].values.length;
+  const maxPoints = Math.max(2, Math.floor(cssWidth));
+  const stride = Math.max(1, Math.ceil(sampleCount / maxPoints));
+  const minimum = bounds.minimum;
+  const maximum = bounds.maximum;
   const range = maximum - minimum || 1;
-  const padding = 34 * window.devicePixelRatio;
+  const left = 62 * pixelRatio;
+  const right = 18 * pixelRatio;
+  const top = 34 * pixelRatio;
+  const bottom = 42 * pixelRatio;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const colors = ['#b8ff4f', '#50c8ff', '#ffbd59', '#d58cff'];
 
   context.clearRect(0, 0, width, height);
+  context.font = `${12 * pixelRatio}px system-ui, sans-serif`;
+  context.fillStyle = '#aab4c3';
+  context.textBaseline = 'middle';
+  context.textAlign = 'right';
+
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const y = top + (tick / 4) * plotHeight;
+    const value = maximum - (tick / 4) * range;
+    context.fillText(Number(value.toPrecision(5)).toString(), left - 8 * pixelRatio, y);
+    context.strokeStyle = '#202b3d';
+    context.lineWidth = pixelRatio;
+    context.beginPath();
+    context.moveTo(left, y);
+    context.lineTo(width - right, y);
+    context.stroke();
+  }
+
   context.strokeStyle = '#2f3d54';
-  context.lineWidth = window.devicePixelRatio;
+  context.lineWidth = pixelRatio;
   context.beginPath();
-  context.moveTo(padding, padding);
-  context.lineTo(padding, height - padding);
-  context.lineTo(width - padding, height - padding);
+  context.moveTo(left, top);
+  context.lineTo(left, height - bottom);
+  context.lineTo(width - right, height - bottom);
   context.stroke();
 
-  context.strokeStyle = '#b8ff4f';
-  context.lineWidth = 2 * window.devicePixelRatio;
-  context.beginPath();
-  plotted.forEach((value, index) => {
-    const x = padding + (index / Math.max(1, plotted.length - 1)) * (width - padding * 2);
-    const y = height - padding - ((value - minimum) / range) * (height - padding * 2);
-    if (index === 0) context.moveTo(x, y);
-    else context.lineTo(x, y);
+  series.forEach((dimension, dimensionIndex) => {
+    const plotted = dimension.values.filter((_, index) => index % stride === 0);
+    if ((sampleCount - 1) % stride !== 0) plotted.push(dimension.values[sampleCount - 1]);
+    context.strokeStyle = colors[dimensionIndex % colors.length];
+    context.lineWidth = 2 * pixelRatio;
+    context.beginPath();
+    plotted.forEach((value, index) => {
+      const sourceIndex = index === plotted.length - 1 ? sampleCount - 1 : index * stride;
+      const x = left + (sourceIndex / Math.max(1, sampleCount - 1)) * plotWidth;
+      const y = top + ((maximum - value) / range) * plotHeight;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.stroke();
   });
-  context.stroke();
+
+  context.font = `${11 * pixelRatio}px system-ui, sans-serif`;
+  context.textAlign = 'left';
+  context.textBaseline = 'middle';
+  let legendX = left;
+  series.forEach((dimension, dimensionIndex) => {
+    context.fillStyle = colors[dimensionIndex % colors.length];
+    context.fillRect(legendX, 12 * pixelRatio, 12 * pixelRatio, 3 * pixelRatio);
+    context.fillStyle = '#dbe7ff';
+    context.fillText(dimension.label, legendX + 17 * pixelRatio, 14 * pixelRatio);
+    legendX += (dimension.label.length * 7 + 34) * pixelRatio;
+  });
+
+  context.fillStyle = '#aab4c3';
+  context.textAlign = 'left';
+  context.fillText('First sample', left, height - 16 * pixelRatio);
+  context.textAlign = 'right';
+  context.fillText(`Sample ${sampleCount}`, width - right, height - 16 * pixelRatio);
 
   canvas.setAttribute(
     'aria-label',
-    `${label} biometric chart with ${samples.length} samples, minimum ${minimum}, maximum ${maximum}.`
+    `${label} biometric chart with ${sampleCount} samples across ${series.length} dimension${series.length === 1 ? '' : 's'}, minimum ${minimum}, maximum ${maximum}.`
   );
   biometricChartFrame.hidden = false;
-  return { minimum, maximum, plottedPoints: plotted.length };
+  return { sampleCount, stride };
+}
+
+function renderBiometricChart(series, label, statistics) {
+  const statisticBounds = statistics.filter(validTrackStatistic);
+  const sampleBounds = series.reduce((bounds, dimension) => {
+    dimension.values.forEach((value) => {
+      bounds.minimum = Math.min(bounds.minimum, value);
+      bounds.maximum = Math.max(bounds.maximum, value);
+    });
+    return bounds;
+  }, { minimum: Infinity, maximum: -Infinity });
+  const bounds = statisticBounds.length
+    ? {
+        minimum: Math.min(...statisticBounds.map((statistic) => statistic.minimum)),
+        maximum: Math.max(...statisticBounds.map((statistic) => statistic.maximum))
+      }
+    : sampleBounds;
+
+  renderedBiometricChart = { series, label, bounds };
+  return {
+    ...drawBiometricChart(renderedBiometricChart),
+    minimum: bounds.minimum,
+    maximum: bounds.maximum,
+    usedServerStatistics: statisticBounds.length > 0
+  };
 }
 
 function renderBiometricTracks(sessionState) {
@@ -271,10 +363,10 @@ function renderBiometricTracks(sessionState) {
     if (details.textContent) item.append(details);
     biometricTracksList.append(item);
 
-    const identifier = trackIdentifier(track);
-    if (identifier) {
+    const uuid = trackUuid(track);
+    if (uuid) {
       const option = document.createElement('option');
-      option.value = identifier;
+      option.value = uuid;
       option.textContent = trackName(track, index);
       biometricChartTrack.append(option);
     }
@@ -287,7 +379,7 @@ function renderBiometricTracks(sessionState) {
   biometricChartPanel.hidden = tracks.length === 0;
   loadBiometricChartBtn.disabled = biometricChartTrack.options.length === 0;
   if (tracks.length > 0 && biometricChartTrack.options.length === 0) {
-    biometricChartStatus.textContent = 'Track metadata is available, but it contains no trackId, id, name, or keyed track identifier required by GET /session/{sessionId}/trackData/{trackId}.';
+    biometricChartStatus.textContent = 'Track metadata is available, but it contains no trackUuid, uuid, or UUID map key required by GET /session/{sessionId}/trackData/{uuid}.';
   }
 }
 
@@ -492,9 +584,14 @@ loadPublicFolderBtn.addEventListener('click', async () => {
 });
 
 applyTargetStatesBtn.addEventListener('click', async () => {
-  if (!MediMuseAPI.sessionId) return;
+  if (!MediMuseAPI.sessionId) {
+    applyTargetStatesBtn.disabled = true;
+    targetStatesStatus.textContent = 'Start an active MediMuse session before applying target states.';
+    log('Target-state update skipped: no active MediMuse session ID.');
+    return;
+  }
 
-  const selected = Array.from(
+  const selectedStates = Array.from(
     targetStatesMatrix.querySelectorAll('input[name="targetState"]:checked'),
     (checkbox) => checkbox.value
   );
@@ -502,11 +599,11 @@ applyTargetStatesBtn.addEventListener('click', async () => {
   applyTargetStatesBtn.disabled = true;
   targetStatesStatus.textContent = 'Applying active biometric states to this session…';
   try {
-    const result = await MediMuseAPI.updateTargetStates(selected);
-    selectedTargetStateValues = new Set(selected);
+    const result = await MediMuseAPI.updateTargetStates(selectedStates);
+    selectedTargetStateValues = new Set(selectedStates);
     const sessionState = await refreshTargetStates();
-    targetStatesStatus.textContent = `${selected.length} active biometric state${selected.length === 1 ? '' : 's'} applied.`;
-    log('Active biometric states updated.', { selected, result, sessionState });
+    targetStatesStatus.textContent = `${selectedStates.length} active biometric state${selectedStates.length === 1 ? '' : 's'} applied.`;
+    log('Active biometric states updated.', { selectedStates, result, sessionState });
   } catch (error) {
     applyTargetStatesBtn.disabled = false;
     targetStatesStatus.textContent = 'MediMuse could not update the active biometric states.';
@@ -515,29 +612,47 @@ applyTargetStatesBtn.addEventListener('click', async () => {
 });
 
 loadBiometricChartBtn.addEventListener('click', async () => {
-  const trackId = biometricChartTrack.value;
-  if (!trackId || !MediMuseAPI.sessionId) return;
+  const trackUuid = biometricChartTrack.value;
+  if (!trackUuid || !MediMuseAPI.sessionId) return;
 
   loadBiometricChartBtn.disabled = true;
   biometricChartFrame.hidden = true;
-  biometricChartStatus.textContent = `Loading real biometric samples for ${trackId}…`;
+  renderedBiometricChart = null;
+  biometricChartStatus.textContent = `Loading global track data for ${trackUuid}…`;
   try {
-    const payload = await MediMuseAPI.getTrackData(trackId);
-    const samples = numericSeries(payload);
-    if (!samples) {
-      biometricChartStatus.textContent = `MediMuse returned ${responseShape(payload)}. A numeric array is required at the response root or in data, samples, values, or trackData before this track can be charted.`;
-      log('Biometric track data has an unsupported shape.', { trackId, payload });
+    const payload = await MediMuseAPI.getTrackData(trackUuid);
+    const series = globalTrackSeries(payload);
+    if (!series) {
+      biometricChartStatus.textContent = `MediMuse returned ${responseShape(payload)}. Expected global track data as a non-empty numeric sample array or a non-empty sample-by-dimension numeric array at the response root or in globalTrackData, data, samples, values, or trackData.`;
+      log('Global biometric track data has an unsupported shape.', { trackUuid, payload });
       return;
     }
 
-    const metrics = renderBiometricChart(samples, biometricChartTrack.selectedOptions[0]?.textContent || trackId);
-    biometricChartStatus.textContent = `${samples.length} real samples loaded. Range: ${metrics.minimum} to ${metrics.maximum}. ${metrics.plottedPoints} points drawn for display.`;
-    log('Biometric chart rendered.', { trackId, sampleCount: samples.length, ...metrics });
+    const statisticResults = await Promise.allSettled(
+      series.map((_, dimension) => MediMuseAPI.getTrackStatistics(trackUuid, dimension))
+    );
+    const statistics = statisticResults.map((result) => result.status === 'fulfilled' ? result.value : null);
+    const metrics = renderBiometricChart(
+      series,
+      biometricChartTrack.selectedOptions[0]?.textContent || trackUuid,
+      statistics
+    );
+    const statisticsMessage = metrics.usedServerStatistics
+      ? 'Axis range uses MediMuse per-dimension statistics.'
+      : 'MediMuse statistics were unavailable; axis range uses only the returned samples.';
+    biometricChartStatus.textContent = `${metrics.sampleCount} real samples loaded across ${series.length} dimension${series.length === 1 ? '' : 's'}. Range: ${metrics.minimum} to ${metrics.maximum}. ${statisticsMessage}`;
+    log('Global biometric chart rendered.', { trackUuid, dimensions: series.length, statistics, ...metrics });
   } catch (error) {
-    biometricChartStatus.textContent = `Could not load chart data from GET /session/{sessionId}/trackData/${trackId}: ${error.message}`;
-    log('Biometric chart data request failed.', { trackId, error: error.message });
+    biometricChartStatus.textContent = `Could not load global track data from GET /session/{sessionId}/trackData/${trackUuid}: ${error.message}`;
+    log('Global biometric chart data request failed.', { trackUuid, error: error.message });
   } finally {
     loadBiometricChartBtn.disabled = false;
+  }
+});
+
+window.addEventListener('resize', () => {
+  if (renderedBiometricChart && !biometricChartFrame.hidden) {
+    drawBiometricChart(renderedBiometricChart);
   }
 });
 
