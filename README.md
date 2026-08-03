@@ -21,8 +21,10 @@ architecture.
 ## Technical direction
 
 - Static client site with no required application server
-- BioDAW provides the user-facing audio workstation interface
-- MediMuse operates beneath BioDAW
+- BioDAW is an external package dependency and is never rewritten or copied
+  into this repository's public assets
+- MediMuse may be accessed through the BioDAW client wrapper or directly
+  through its published OpenAPI contract
 - Existing Empatica E4 files provide the initial biometric input
 - The existing HeartSong algorithm produces the StateSong
 - GitHub is the centralized source, development record, and hosting location
@@ -51,29 +53,21 @@ npm install
 npm run dev
 ```
 
-The first browser interaction must be **Start BioDAW**. Browsers require a user
-gesture before activating an audio engine.
-
 ## Project status
 
-The Hello rOjO application consumes Peter Slack's published BioDAW 1.0.1
-package as a declared dependency, boots its WebAssembly audio engine in the
-browser, detects the MediMuse client, and provides a playable synthesizer
-check.
+The application was reset to Peter Slack's working `biodaw_app_example` login
+shell on August 3, 2026. The reset baseline imports `biodaw` from the published
+package, uses Keycloak with PKCE, supplies bearer tokens to MediMuse, creates
+authenticated sessions, and reads public datasets.
 
-The client uses Keycloak with PKCE for login, supplies refreshed bearer tokens
-to `HeadlessAPI.MediMuse`, and can create an authenticated MediMuse session
-through the temporary `https://biodaw.com/` proxy. The published MediMuse
-OpenAPI reference is linked from the application and remains the authority for
-backend capabilities not wrapped by the BioDAW library.
+Only the small Keycloak silent-SSO callback page is placed in `public`. No
+BioDAW SDK, WebAssembly engine, soundfont, effects, or sample data is copied
+there.
 
-The recorded E4 studio accepts an extracted Empatica session folder, validates
-and parses ACC, BVP, EDA, HR, and TEMP locally, presents each signal as a
-configurable musical track, and produces a short BioDAW mapping preview. Audio
-and MIDI generation endpoints exist in the backend contract but remain work in
-progress; the local mapping preview is not presented as HeartSong output. The
-authenticated HeartSong generation flow and real-time OSC/WebSocket bridge are
-the next integration milestones.
+The previous E4 mapping studio and browser audio preview remain preserved in
+Git history, but are deliberately absent from this clean baseline. They will be
+restored only after BioDAW audio can consume externally managed runtime assets.
+HeartSong audio and MIDI generation also remain work in progress.
 
 ## Stewardship
 

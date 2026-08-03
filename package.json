@@ -1,19 +1,18 @@
 {
-  "name": "statesong-ui-test-build",
-  "version": "0.1.0",
+  "name": "statesong-secure-client",
   "private": true,
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "prepare:assets": "node ./scripts/sync-sdk-assets.mjs",
-    "dev": "npm run prepare:assets && vite",
-    "build": "npm run prepare:assets && vite build",
+    "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview"
-  },
-  "devDependencies": {
-    "vite": "^7.3.1"
   },
   "dependencies": {
     "biodaw": "https://devpoint.medimuse.io/biodaw-1.0.1.tgz",
-    "keycloak-js": "^26.2.4"
+    "keycloak-js": "^26.2.3"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
   }
 }

@@ -1,281 +1,78 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="A browser-based BioDAW and MediMuse client test for the StateSong experience."
-    />
-    <title>Hello rOjO · StateSong</title>
-    <link rel="stylesheet" href="./src/styles.css" />
-  </head>
-  <body>
-    <main class="shell">
-      <header class="masthead">
-        <a class="wordmark" href="#" aria-label="StateSong home">
-          <span class="wordmark-mark" aria-hidden="true"></span>
-          <span>StateSong</span>
-        </a>
-        <div class="masthead-meta">
-          <span class="build-label">UI TEST BUILD · 002</span>
-          <span class="auth-pill" id="authPill">Public mode</span>
-        </div>
-      </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="StateSong secure client baseline for Keycloak and MediMuse connectivity."
+  />
+  <title>StateSong · Secure Baseline</title>
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">StateSong Test Build · Clean Baseline</p>
+        <h1>Securely connected. Ready to build.</h1>
+        <p class="subcopy">
+          A clean client foundation for Keycloak authentication, MediMuse
+          services, and the externally managed BioDAW library.
+        </p>
+      </div>
+      <div class="auth-actions">
+        <button id="loginBtn" class="primary">Login / Register</button>
+        <button id="logoutBtn" class="secondary" hidden>Logout</button>
+      </div>
+    </header>
 
-      <section class="backend-panel" aria-labelledby="backend-title">
-        <div>
-          <p class="step-label">SECURE MEDIMUSE BACKEND</p>
-          <h2 id="backend-title">Connect your StateSong session.</h2>
-          <p id="authStatus" class="backend-status" aria-live="polite">
-            Checking for an existing secure login…
-          </p>
-        </div>
-        <dl class="backend-details">
+    <main class="panel-grid">
+      <section class="panel">
+        <h2>Secure access</h2>
+        <p id="authStatus">Initializing Keycloak…</p>
+        <dl class="details">
           <div>
             <dt>User</dt>
             <dd id="userDisplay">Public user</dd>
           </div>
           <div>
             <dt>License</dt>
-            <dd id="licenseDisplay">Not authenticated</dd>
+            <dd id="licenseDisplay">Unlicensed</dd>
           </div>
           <div>
-            <dt>Session</dt>
-            <dd id="backendSessionDisplay">Not created</dd>
-          </div>
-          <div>
-            <dt>Server</dt>
-            <dd>biodaw.com</dd>
-          </div>
-        </dl>
-        <div class="backend-controls">
-          <button class="primary-action" id="loginButton" type="button">
-            Login / Register
-          </button>
-          <button
-            class="secondary-action"
-            id="createBackendSessionButton"
-            type="button"
-            disabled
-          >
-            Create secure session
-          </button>
-          <button class="secondary-action" id="logoutButton" type="button" hidden>
-            Logout
-          </button>
-          <a
-            class="api-reference-link"
-            href="https://biodaw.com/swagger-ui/index.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            MediMuse API reference ↗
-          </a>
-        </div>
-        <p class="backend-boundary">
-          Login and session access are live. HeartSong audio and MIDI generation
-          remain in development and are not represented as available here.
-        </p>
-      </section>
-
-      <section class="hero" aria-labelledby="page-title">
-        <div class="eyebrow">
-          <span class="status-dot" id="statusDot" aria-hidden="true"></span>
-          <span id="engineState">Engine offline</span>
-        </div>
-
-        <h1 id="page-title">Hello, <span>rOjO.</span></h1>
-        <p class="lede">
-          A first signal from BioDAW and MediMuse—running entirely in your
-          browser.
-        </p>
-
-        <div class="engine-card">
-          <div class="signal-field" aria-hidden="true">
-            <div class="signal-line signal-line-one"></div>
-            <div class="signal-line signal-line-two"></div>
-            <div class="signal-line signal-line-three"></div>
-            <div class="signal-orbit"></div>
-          </div>
-
-          <div class="engine-content">
-            <p class="step-label">BIOLOGICAL AUDIO WORKSTATION</p>
-            <h2>Wake the engine.</h2>
-            <p id="statusMessage" class="status-message" aria-live="polite">
-              BioDAW is ready to initialize. Audio begins only after you ask.
-            </p>
-
-            <div class="actions">
-              <button class="primary-action" id="startButton" type="button">
-                <span>Start BioDAW</span>
-                <span aria-hidden="true">↗</span>
-              </button>
-              <button
-                class="secondary-action"
-                id="playButton"
-                type="button"
-                disabled
-              >
-                Play hello tone
-              </button>
-              <button
-                class="secondary-action"
-                id="stopButton"
-                type="button"
-                disabled
-              >
-                Stop
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="workspace" id="e4Workspace" aria-labelledby="workspace-title">
-        <div class="workspace-heading">
-          <div>
-            <p class="step-label">RECORDED E4 STUDIO</p>
-            <h2 id="workspace-title">Bring a session into BioDAW.</h2>
-          </div>
-          <p>
-            Drop an Empatica E4 folder or ZIP below. The files are read
-            locally in this browser and are not uploaded.
-          </p>
-        </div>
-
-        <div
-          class="drop-zone"
-          id="dropZone"
-          role="button"
-          tabindex="0"
-          aria-disabled="false"
-          aria-label="Choose or drop an Empatica E4 folder"
-        >
-          <input
-            id="folderInput"
-            type="file"
-            webkitdirectory
-            directory
-            multiple
-            hidden
-          />
-          <input id="zipInput" type="file" accept=".zip,application/zip" multiple hidden />
-          <span class="drop-index" aria-hidden="true">DROP</span>
-          <div>
-            <strong id="dropTitle">Drop an E4 session folder here</strong>
-            <span id="dropHelp">
-              Drag a folder or ZIP from your computer. ACC, BVP, EDA, HR and
-              TEMP are required.
-            </span>
-          </div>
-          <button id="chooseFolderButton" type="button">
-            Browse files
-          </button>
-          <button id="chooseZipButton" type="button">Browse ZIP</button>
-        </div>
-        <div class="sample-picker">
-          <label for="sampleSession">Or try a sample E4 session</label>
-          <select id="sampleSession">
-            <option value="">Choose a bundled sample…</option>
-            <option value="E4_Boxing Soft & Hard.zip">Boxing Soft &amp; Hard</option>
-            <option value="E4_Hand Arm Curls.zip">Hand Arm Curls</option>
-            <option value="E4_Hand Wave Motion.zip">Hand Wave Motion</option>
-            <option value="E4_into-hot-water_5m30s.zip">Into Hot Water · 5m30s</option>
-            <option value="E4_Jumping Jacks w Wrist Twist.zip">Jumping Jacks + Wrist Twist</option>
-            <option value="E4_wind-down_5m15s.zip">Wind Down · 5m15s</option>
-          </select>
-        </div>
-
-        <div class="session-panel" id="sessionPanel" hidden>
-          <div class="session-summary">
-            <div>
-              <span class="summary-label">SESSION</span>
-              <strong id="sessionName">—</strong>
-            </div>
-            <div>
-              <span class="summary-label">SIGNALS</span>
-              <strong id="signalCount">0</strong>
-            </div>
-            <div>
-              <span class="summary-label">DURATION</span>
-              <strong id="sessionDuration">0:00</strong>
-            </div>
-            <div>
-              <span class="summary-label">STATUS</span>
-              <strong class="valid-state">Validated</strong>
-            </div>
-          </div>
-
-          <div class="track-list-heading">
-            <span>Biometric source</span>
-            <span>Samples</span>
-            <span>Musical role</span>
-            <span>Sound</span>
-          </div>
-          <div class="track-list" id="trackList"></div>
-
-          <div class="workspace-actions">
-            <p id="workspaceStatus" aria-live="polite">
-              Local mapping preview; full HeartSong generation requires the
-              backend.
-            </p>
-            <div class="preview-controls">
-              <label for="previewLength">Preview length <output id="previewLengthValue">30s</output></label>
-              <input id="previewLength" type="range" min="10" max="3600" step="5" value="30" />
-              <label for="previewPlayhead">Playhead <output id="previewPlayheadValue">0:00</output></label>
-              <input id="previewPlayhead" type="range" min="0" max="30" step="0.1" value="0" disabled />
-              <label for="previewVolume">Volume <output id="previewVolumeValue">35%</output></label>
-              <input id="previewVolume" type="range" min="0" max="100" step="1" value="35" />
-            </div>
-            <div>
-              <button class="secondary-action" id="clearSessionButton" type="button">
-                Clear
-              </button>
-              <button
-                class="primary-action"
-                id="previewSessionButton"
-                type="button"
-                disabled
-              >
-                <span>Play preview</span>
-                <span aria-hidden="true">▶</span>
-              </button>
-              <button class="backend-action" type="button" disabled>
-                Generate StateSong · API pending
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="proof" aria-labelledby="proof-title">
-        <div>
-          <p class="step-label">LIVE CLIENT PROOF</p>
-          <h2 id="proof-title">One page. No server. Real engine.</h2>
-        </div>
-        <dl class="proof-grid">
-          <div>
-            <dt>BioDAW</dt>
-            <dd id="biodawProof">Waiting</dd>
-          </div>
-          <div>
-            <dt>MediMuse</dt>
-            <dd id="medimuseProof">Secure client ready</dd>
-          </div>
-          <div>
-            <dt>Audio</dt>
-            <dd id="audioProof">Locked</dd>
+            <dt>Session Id</dt>
+            <dd id="sessionDisplay">Not created</dd>
           </div>
         </dl>
       </section>
 
-      <footer>
-        <span>ROBERT JOSEPH · PETER SLACK · TREBOR</span>
-        <span>E4 → HEARTSONG → STATESONG</span>
-      </footer>
+      <section class="panel">
+        <h2>MediMuse connection</h2>
+        <div class="button-row">
+          <button id="createSessionBtn" class="primary" disabled>Create secure session</button>
+          <button id="loadFoldersBtn" class="secondary" disabled>Check public datasets</button>
+        </div>
+        <ul id="folderList" class="folder-list">
+          <li>Login to check available MediMuse datasets.</li>
+        </ul>
+      </section>
+
+      <section class="panel boundary-panel">
+        <p class="eyebrow">Development boundary</p>
+        <h2>HeartSong generation is not enabled yet.</h2>
+        <p>
+          This reset proves secure login and MediMuse connectivity. The E4
+          studio and BioDAW playback will return only through externally managed
+          library and runtime resources.
+        </p>
+        <a
+          href="https://biodaw.com/swagger-ui/index.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >MediMuse OpenAPI reference ↗</a>
+      </section>
     </main>
-
-    <script type="module" src="./src/app.js"></script>
-  </body>
+  </div>
+</body>
 </html>

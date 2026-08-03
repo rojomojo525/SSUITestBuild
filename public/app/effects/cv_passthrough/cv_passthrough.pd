@@ -1,7 +1,0 @@
-#N canvas 200 200 400 300 12;
-#X obj 150 100 adc~ 1 2;
-#X obj 150 200 dac~ 1 2;
-#X text 150 50 CV DC PASSTHROUGH;
-#X text 150 250 (Safety Gate Override);
-#X connect 0 0 1 0;
-#X connect 0 1 1 1;
