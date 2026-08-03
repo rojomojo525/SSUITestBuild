@@ -49,13 +49,27 @@
 
       <section class="panel">
         <h2>MediMuse connection</h2>
+        <p class="panel-copy">
+          Begin with a known public dataset already available on the MediMuse
+          server. Local upload comes later.
+        </p>
         <div class="button-row">
-          <button id="createSessionBtn" class="primary" disabled>Create secure session</button>
-          <button id="loadFoldersBtn" class="secondary" disabled>Check public datasets</button>
+          <button id="createSessionBtn" class="primary" disabled>
+            Start with public data
+          </button>
         </div>
-        <ul id="folderList" class="folder-list">
-          <li>Login to check available MediMuse datasets.</li>
-        </ul>
+        <label class="dataset-field" for="publicFolderSelect">
+          <span>Public E4 dataset</span>
+          <select id="publicFolderSelect" disabled>
+            <option value="">Login and start a session first</option>
+          </select>
+        </label>
+        <button id="loadPublicFolderBtn" class="secondary dataset-load" disabled>
+          Load selected dataset
+        </button>
+        <p id="publicDataStatus" class="data-status" aria-live="polite">
+          Waiting for secure access.
+        </p>
       </section>
 
       <section class="panel boundary-panel">

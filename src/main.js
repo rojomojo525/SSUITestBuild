@@ -11,11 +11,12 @@ const authStatusEl = document.getElementById('authStatus');
 const userDisplayEl = document.getElementById('userDisplay');
 const licenseDisplayEl = document.getElementById('licenseDisplay');
 const sessionDisplayEl = document.getElementById('sessionDisplay');
-const folderListEl = document.getElementById('folderList');
 const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const createSessionBtn = document.getElementById('createSessionBtn');
-const loadFoldersBtn = document.getElementById('loadFoldersBtn');
+const publicFolderSelect = document.getElementById('publicFolderSelect');
+const loadPublicFolderBtn = document.getElementById('loadPublicFolderBtn');
+const publicDataStatusEl = document.getElementById('publicDataStatus');
 
 function log(message, data) {
   if (data === undefined) {
@@ -25,34 +26,62 @@ function log(message, data) {
   }
 }
 
-function renderFolderList(folders) {
-  if (!Array.isArray(folders) || folders.length === 0) {
-    folderListEl.innerHTML = '<li>No public folders returned.</li>';
-    return;
-  }
+function folderName(folder) {
+  if (typeof folder === 'string') return folder;
+  return folder?.name || folder?.folderName || folder?.path || String(folder);
+}
 
-  folderListEl.innerHTML = folders
-    .map((folder) => `<li>${String(folder)}</li>`)
-    .join('');
+function renderFolderOptions(folders) {
+  publicFolderSelect.replaceChildren();
+
+  const prompt = document.createElement('option');
+  prompt.value = '';
+  prompt.textContent = folders.length
+    ? 'Choose a server dataset'
+    : 'No public datasets returned';
+  publicFolderSelect.append(prompt);
+
+  folders.forEach((folder) => {
+    const name = folderName(folder);
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    publicFolderSelect.append(option);
+  });
+
+  publicFolderSelect.disabled = folders.length === 0;
+  loadPublicFolderBtn.disabled = true;
 }
 
 function updateAuthenticatedUI(isAuthenticated) {
   loginBtn.hidden = isAuthenticated;
   logoutBtn.hidden = !isAuthenticated;
   createSessionBtn.disabled = !isAuthenticated;
-  loadFoldersBtn.disabled = !isAuthenticated;
 
   if (!isAuthenticated) {
     authStatusEl.textContent = 'Not authenticated. Use Login / Register to access Medimuse services.';
     userDisplayEl.textContent = 'Public user';
     licenseDisplayEl.textContent = 'Unlicensed';
     sessionDisplayEl.textContent = 'Not created';
-    renderFolderList([]);
+    renderFolderOptions([]);
+    publicFolderSelect.firstElementChild.textContent = 'Login and start a session first';
+    publicDataStatusEl.textContent = 'Waiting for secure access.';
     if (tokenRefreshInterval) {
       clearInterval(tokenRefreshInterval);
       tokenRefreshInterval = null;
     }
   }
+}
+
+async function loadPublicFolders() {
+  publicDataStatusEl.textContent = 'Checking public datasets on MediMuse…';
+  const folders = await MediMuseAPI.getPublicFolders();
+  const availableFolders = Array.isArray(folders) ? folders : [];
+  renderFolderOptions(availableFolders);
+  publicDataStatusEl.textContent = availableFolders.length
+    ? `${availableFolders.length} public dataset${availableFolders.length === 1 ? '' : 's'} available. Choose one to continue.`
+    : 'MediMuse returned no public datasets.';
+  log('Public folders loaded.', folders);
 }
 
 async function loadUserProfile() {
@@ -153,28 +182,49 @@ logoutBtn.addEventListener('click', async () => {
 });
 
 createSessionBtn.addEventListener('click', async () => {
+  createSessionBtn.disabled = true;
   try {
-    authStatusEl.textContent = 'Creating MediMuse session…';
+    authStatusEl.textContent = 'Creating a secure MediMuse session…';
+    publicDataStatusEl.textContent = 'Preparing the public-data workflow…';
     const session = await MediMuseAPI.createSession();
     sessionDisplayEl.textContent = MediMuseAPI.sessionId || session.name || 'Created';
-    authStatusEl.textContent = 'Session created.';
+    authStatusEl.textContent = 'Secure session created.';
     log('Session created.', session);
+    await loadPublicFolders();
   } catch (error) {
     authStatusEl.textContent = 'Session creation failed.';
+    publicDataStatusEl.textContent = 'Could not begin the public-data workflow.';
     log('Session creation failed.', error.message);
+  } finally {
+    createSessionBtn.disabled = !keycloak.authenticated;
   }
 });
 
-loadFoldersBtn.addEventListener('click', async () => {
+publicFolderSelect.addEventListener('change', () => {
+  loadPublicFolderBtn.disabled = !publicFolderSelect.value;
+  if (publicFolderSelect.value) {
+    publicDataStatusEl.textContent = `${publicFolderSelect.value} is ready to load.`;
+  }
+});
+
+loadPublicFolderBtn.addEventListener('click', async () => {
+  const selectedFolder = publicFolderSelect.value;
+  if (!selectedFolder || !MediMuseAPI.sessionId) return;
+
+  loadPublicFolderBtn.disabled = true;
   try {
-    authStatusEl.textContent = 'Loading public folders…';
-    const folders = await MediMuseAPI.getPublicFolders();
-    renderFolderList(folders);
-    authStatusEl.textContent = 'Public folders loaded.';
-    log('Public folders loaded.', folders);
+    publicDataStatusEl.textContent = `Loading ${selectedFolder} into the secure session…`;
+    const result = await MediMuseAPI.loadPublicFolder(selectedFolder);
+    const sessionState = await MediMuseAPI.getSessionState().catch(() => null);
+    const stateLabel = sessionState?.sessionState || sessionState?.state;
+    publicDataStatusEl.textContent = stateLabel
+      ? `${selectedFolder} is loaded. MediMuse reports: ${stateLabel}.`
+      : `${selectedFolder} is loaded and ready in MediMuse.`;
+    log('Public folder loaded.', { result, sessionState });
   } catch (error) {
-    authStatusEl.textContent = 'Failed to load public folders.';
-    log('Public folder request failed.', error.message);
+    publicDataStatusEl.textContent = `MediMuse could not load ${selectedFolder}.`;
+    loadPublicFolderBtn.disabled = false;
+    log('Public folder load failed.', error.message);
   }
 });
 
